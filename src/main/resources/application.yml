@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: auth-service
+  profiles:
+    active: dev,email
+
+server:
+  port: 8081
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*.xml
+  type-aliases-package: top.contins.authservice.model.po
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+app:
+  name: ${app.webname}
+  official-website: ${app.website}
+  organization-name: ${app.organization_name}
+  contact:
+    email: ${app.email}
+    phone: ${app.phone}
+  working-hours: 9:00-18:00
+  # JWT配置
+  jwt:
+    secret: mySecretKey12345678901234567890123456789012
+    expiration: 86400000 # 24小时
+    refresh-expiration: 604800000 # 7天
