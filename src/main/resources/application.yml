@@ -16,7 +16,7 @@ mybatis-plus:
 
 app:
   name: ${app.webname}
-  official-website: ${app.website}
+  official-website: ${private.app.website}
   organization-name: ${app.organization_name}
   contact:
     email: ${app.email}
@@ -24,6 +24,7 @@ app:
   working-hours: 9:00-18:00
   # JWT配置
   jwt:
-    secret: mySecretKey12345678901234567890123456789012
+    secret: ${private.jwt.secret}
     expiration: 86400000 # 24小时
     refresh-expiration: 604800000 # 7天
+    issuer: ${private.app.website} # 签发者

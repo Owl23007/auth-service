@@ -19,19 +19,20 @@ import top.contins.authservice.util.JwtUtil;
 @Validated
 @Slf4j
 public class AuthController {
+    private final UserService userService ;
+    private final JwtUtil jwtUtil ;
+    private final CaptchaService captchaService ;
 
     @Autowired
-    private UserService userService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private CaptchaService captchaService;
+    public AuthController(UserService userService, JwtUtil jwtUtil, CaptchaService captchaService) {
+        this.userService = userService;
+        this.jwtUtil = jwtUtil;
+        this.captchaService = captchaService;
+    }
 
     /**
      * 用户登录
-     * 
+     *
      * @param loginRequest 登录请求
      * @return 登录结果，包含access token和refresh token
      */
@@ -42,9 +43,9 @@ public class AuthController {
 
     /**
      * 刷新access token
-     * 
+     *
      * @param refreshToken 刷新token
-     * @return 新的token信息
+     * @return 新的access token
      */
     @PostMapping("/refresh")
     public Result<?> refreshToken(@RequestParam("refreshToken") String refreshToken) {
@@ -53,7 +54,7 @@ public class AuthController {
 
     /**
      * 获取验证码
-     * 
+     *
      * @return 验证码的Base64编码字符串
      */
     @GetMapping("/captcha")
@@ -64,7 +65,7 @@ public class AuthController {
 
     /**
      * 用户登出
-     * 
+     *
      * @param token 用户token
      * @return 登出结果
      */
@@ -78,7 +79,7 @@ public class AuthController {
 
     /**
      * 验证token有效性
-     * 
+     *
      * @param token 待验证的token
      * @return 验证结果
      */

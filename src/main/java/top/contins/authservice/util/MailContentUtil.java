@@ -26,7 +26,7 @@ public class MailContentUtil {
         String token = redisEmailTokenService.generateAndStoreToken(email, "activation", 24 * 60);
 
         // 返回激活链接
-        return baseUrl + "/auth/activate?token=" + token;
+        return baseUrl + "/registration/activate?token=" + token;
     }
 
     /**

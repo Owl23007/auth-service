@@ -13,7 +13,7 @@ import top.contins.authservice.service.UserService;
  * 负责密码重置和密码修改相关功能
  */
 @RestController
-@RequestMapping("/auth/password")
+@RequestMapping("/user/password")
 @Validated
 public class PasswordController {
 
@@ -58,21 +58,5 @@ public class PasswordController {
     @PostMapping("/reset")
     public Result<String> resetPassword(@RequestBody @Validated ResetPasswordRequest request) {
         return userService.resetPassword(request.getToken(), request.getNewPassword(), request.getConfirmPassword());
-    }
-
-    /**
-     * 修改密码（需要旧密码验证）
-     * 
-     * @param oldPassword     旧密码
-     * @param newPassword     新密码
-     * @param confirmPassword 确认新密码
-     * @return 修改结果
-     */
-    @PostMapping("/update")
-    public Result<String> updatePassword(
-            @RequestParam("oldPassword") String oldPassword,
-            @RequestParam("newPassword") String newPassword,
-            @RequestParam("confirmPassword") String confirmPassword) {
-        return userService.changePassword(oldPassword, newPassword, confirmPassword);
     }
 }

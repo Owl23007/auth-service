@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 import top.contins.authservice.config.MailTemplateConfig;
 import top.contins.authservice.service.MailService;
 import top.contins.authservice.util.MailContentUtil;
@@ -46,7 +47,7 @@ public class MailServiceImpl implements MailService {
 
     @Override
     public void sendEmailWithTemplate(String to, String templateType, Map<String, Object> placeholders) {
-        String templateContent = mailTemplateConfig.getTemplates().get(templateType);
+        String templateContent = mailTemplateConfig.getTemplateContent(templateType);
         if (!StringUtils.hasText(templateContent)) {
             throw new IllegalArgumentException("模板未找到: " + templateType);
         }
@@ -54,9 +55,21 @@ public class MailServiceImpl implements MailService {
         // 添加通用占位符
         addCommonPlaceholders(placeholders);
 
-        // 使用更强大的模板替换实现
         String emailContent = processTemplate(templateContent, placeholders);
         sendEmail(to, getSubjectByTemplateType(templateType), emailContent);
+    }
+
+    @Override
+    public String getHTMLContent(String templateType, Map<String, Object> placeholders) {
+        String templateContent = mailTemplateConfig.getTemplateContent(templateType);
+        if (!StringUtils.hasText(templateContent)) {
+            throw new IllegalArgumentException("模板未找到: " + templateType);
+        }
+
+        // 添加通用占位符
+        addCommonPlaceholders(placeholders);
+
+        return processTemplate(templateContent, placeholders);
     }
 
     /**
@@ -86,15 +99,19 @@ public class MailServiceImpl implements MailService {
     private String processTemplate(String template, Map<String, Object> placeholders) {
 
         // 使用正则表达式查找并替换 ${key} 格式的占位符
-        Pattern pattern = Pattern.compile("\\$\\{([^}]+)\\}");
+        Pattern pattern = Pattern.compile("\\$\\{([^}]+)}");
         Matcher matcher = pattern.matcher(template);
 
         // 使用 StringBuffer 来构建结果
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
+
+
 
         while (matcher.find()) {
             String placeholder = matcher.group(1);
             String replacement = String.valueOf(placeholders.getOrDefault(placeholder, "${" + placeholder + "}"));
+
+            replacement = HtmlUtils.htmlEscape(replacement);
             // 转义替换文本中的特殊字符
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
         }
@@ -110,13 +127,10 @@ public class MailServiceImpl implements MailService {
      * @return 邮件主题
      */
     private String getSubjectByTemplateType(String templateType) {
-        switch (templateType) {
-            case "register":
-                return "欢迎注册我们的服务";
-            case "resetPassword":
-                return "密码重置请求";
-            default:
-                return "系统通知";
-        }
+        return switch (templateType) {
+            case "register" -> "欢迎注册我们的服务";
+            case "resetPassword" -> "密码重置请求";
+            default -> "系统通知";
+        };
     }
 }

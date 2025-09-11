@@ -30,6 +30,8 @@ public class UserPo {
 
     private UserStatus status;
 
+    private role role;
+
     @JsonIgnore
     private LocalDateTime lastLoginTime;
     @JsonIgnore
@@ -42,6 +44,18 @@ public class UserPo {
     @JsonIgnore
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    @Getter
+    public enum role {
+      USER(0), ADMIN(1);
+
+        @EnumValue
+        private final int value;
+
+        role(int value) {
+            this.value = value;
+        }
+    }
 
     @Getter
     public enum UserStatus {

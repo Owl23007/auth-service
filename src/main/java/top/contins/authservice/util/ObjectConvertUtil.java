@@ -288,20 +288,21 @@ public class ObjectConvertUtil {
      * @return 是否为空
      */
     public static boolean isEmpty(Object obj) {
-        if (obj == null) {
-            return true;
-        }
-
-        if (obj instanceof String) {
-            return ((String) obj).trim().isEmpty();
-        }
-
-        if (obj instanceof Collection) {
-            return ((Collection<?>) obj).isEmpty();
-        }
-
-        if (obj instanceof Map) {
-            return ((Map<?, ?>) obj).isEmpty();
+        switch (obj) {
+            case null -> {
+                return true;
+            }
+            case String s -> {
+                return s.trim().isEmpty();
+            }
+            case Collection<?>  collection -> {
+                return collection.isEmpty();
+            }
+            case Map<?,?> map -> {
+                return map.isEmpty();
+            }
+            default -> {
+            }
         }
 
         if (obj.getClass().isArray()) {

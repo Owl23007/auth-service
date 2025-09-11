@@ -22,7 +22,9 @@ import top.contins.authservice.util.JwtUtil;
 import top.contins.authservice.util.MailContentUtil;
 import top.contins.authservice.util.ObjectConvertUtil;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -62,8 +64,8 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     public UserServiceImpl(UserMapper userMapper, MailService mailService,
-            MailContentUtil mailContentUtil, RedisEmailTokenService redisEmailTokenService,
-            PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CaptchaService captchaService, ObjectConvertUtil objectConvertUtil) {
+                           MailContentUtil mailContentUtil, RedisEmailTokenService redisEmailTokenService,
+                           PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CaptchaService captchaService) {
         this.userMapper = userMapper;
         this.mailService = mailService;
         this.mailContentUtil = mailContentUtil;
@@ -169,7 +171,7 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 判断邮件组件是否配置正确
-     * 
+     *
      * @return true表示邮件组件已配置，false表示未配置
      */
     private boolean isMailConfigured() {
@@ -178,7 +180,7 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 发送账户激活邮件
-     * 
+     *
      * @param user 用户信息
      */
     private void sendActivationEmail(UserPo user) {
@@ -201,7 +203,7 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 发送密码重置邮件
-     * 
+     *
      * @param email 用户邮箱
      * @return 操作结果
      */
@@ -230,7 +232,7 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 激活账户
-     * 
+     *
      * @param token 激活令牌
      * @return 操作结果
      */
@@ -300,7 +302,7 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 发送密码重置邮件
-     * 
+     *
      * @param user 用户信息
      */
     private void sendResetPasswordEmail(UserPo user) {
@@ -351,9 +353,15 @@ public class UserServiceImpl implements UserService {
             return Result.error("账户已停用，请联系管理员");
         }
 
-        // 生成JWT token
-        String accessToken = jwtUtil.generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUserId(), user.getUsername());
+        // --- 修复点: 生成 Token ---
+        // 从 UserPo 中获取真实的角色名称 (如 "USER" 或 "ADMIN")
+        String role = user.getRole().name();
+        // 定义受众服务列表，例如用户登录后默认可以访问认证服务和用户资料服务
+        List<String> audience = Arrays.asList("auth-service", "user-profile");
+
+        String accessToken = jwtUtil.generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail(), role, null, audience);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUserId(), user.getUsername(), role, audience);
+        // --- 修复点结束 ---
 
         // 构建响应
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
@@ -401,9 +409,14 @@ public class UserServiceImpl implements UserService {
             return Result.error("用户状态异常，请重新登录");
         }
 
-        // 生成新的token
-        String newAccessToken = jwtUtil.generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail());
-        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUserId(), user.getUsername());
+        // --- 修复点: 生成新的 Token ---
+        // 从旧的 refreshToken 中提取角色和受众，以保持权限一致
+        String role = jwtUtil.getRoleFromToken(refreshToken);
+        List<String> audience = jwtUtil.getAudienceFromToken(refreshToken);
+
+        String newAccessToken = jwtUtil.generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail(), role, null, audience);
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUserId(), user.getUsername(), role, audience);
+        // --- 修复点结束 ---
 
         LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
                 user.getUserId(),
@@ -455,14 +468,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Result<String> changePassword(String oldPassword, String newPassword, String confirmPassword) {
+    public Result<String> changePassword(String oldPassword, String hashedPassword, String confirmPassword) {
         // 验证密码确认
-        if (!newPassword.equals(confirmPassword)) {
+        if (!hashedPassword.equals(confirmPassword)) {
             return Result.error("两次输入的密码不一致");
         }
 
         // 验证密码强度
-        if (newPassword.length() < 6) {
+        if (hashedPassword.length() < 6) {
             return Result.error("密码长度不能少于6位");
         }
 
@@ -483,12 +496,12 @@ public class UserServiceImpl implements UserService {
         }
 
         // 检查新密码是否与旧密码相同
-        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+        if (passwordEncoder.matches(hashedPassword, user.getPassword())) {
             return Result.error("新密码不能与旧密码相同");
         }
 
         // 更新密码
-        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPassword(passwordEncoder.encode(hashedPassword));
         updateUser(user);
 
         log.info("用户密码修改成功，用户ID：{}", currentUserId);

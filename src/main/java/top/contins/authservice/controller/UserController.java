@@ -9,7 +9,7 @@ import top.contins.authservice.model.po.UserPo;
 import top.contins.authservice.service.UserService;
 
 @RestController
-@RequestMapping("/auth/user")
+@RequestMapping("/user")
 @Validated
 public class UserController {
 
@@ -23,12 +23,10 @@ public class UserController {
      */
     @GetMapping("/profile")
     public Result<UserPo> getCurrentUserProfile() {
-        // 获取当前登录用户的ID
         Integer userId = userService.getCurrentUserId();
         if (userId == null) {
             return Result.error("用户未登录或不存在");
         }
-        // 根据用户ID获取用户信息
         UserPo user = userService.getUserById(userId);
         return Result.success(user);
     }
@@ -41,12 +39,13 @@ public class UserController {
      */
     @PutMapping("/profile")
     public Result<UserPo> updateUserProfile(@RequestBody UserPo user) {
+        //TODO 添加更多的验证逻辑
         UserPo updatedUser = userService.updateUser(user);
         return Result.success(updatedUser);
     }
 
     /**
-     * 根据用户ID获取用户信息（管理员功能）
+     * 根据用户ID获取用户信息
      *
      * @param userId 用户ID
      * @return 用户信息
@@ -58,64 +57,34 @@ public class UserController {
     }
 
     /**
-     * 删除用户账户
+     * 根据 input 查询用户列表
      *
-     * @param userId 用户ID
-     * @return 删除结果
+     * @param input 查询参数
+     * @return 用户列表
      */
-    @DeleteMapping("/{userId}")
-    public Result<String> deleteUser(@PathVariable("userId") Integer userId) {
-        boolean result = userService.deleteUser(userId);
-        if (result) {
-            return Result.success("用户删除成功");
-        } else {
-            return Result.error("用户删除失败");
-        }
+    @GetMapping("/search")
+    public Result<UserPo> searchUsers(@RequestParam("input") String input) {
+        //TODO 实现用户列表查询功能
+        // return userService.searchUsers(input);
+        return Result.success(null);
     }
 
-    /**
-     * 禁用用户账户
-     *
-     * @param userId 用户ID
-     * @return 操作结果
-     */
-    @PostMapping("/{userId}/disable")
-    public Result<String> disableUser(@PathVariable("userId") Integer userId) {
-        UserPo user = userService.getUserById(userId);
-        if (user == null) {
-            return Result.error("用户不存在");
-        }
-
-        if (user.getStatus() == UserPo.UserStatus.BANNED) {
-            return Result.error("用户已被禁用");
-        }
-
-        user.setStatus(UserPo.UserStatus.BANNED);
-        userService.updateUser(user);
-
-        return Result.success("用户已禁用");
-    }
 
     /**
-     * 启用用户账户
+     * 修改密码（需要旧密码验证）
      *
-     * @param userId 用户ID
-     * @return 操作结果
+     * @param oldPassword     旧密码
+     * @param newPassword     新密码
+     * @param hashedPassword  密码哈希值
+     * @return 修改结果
      */
-    @PostMapping("/{userId}/enable")
-    public Result<String> enableUser(@PathVariable("userId") Integer userId) {
-        UserPo user = userService.getUserById(userId);
-        if (user == null) {
-            return Result.error("用户不存在");
-        }
-
-        if (user.getStatus() == UserPo.UserStatus.NORMAL) {
-            return Result.error("用户已启用");
-        }
-
-        user.setStatus(UserPo.UserStatus.NORMAL);
-        userService.updateUser(user);
-
-        return Result.success("用户已启用");
+    @PostMapping("/update")
+    public Result<String> updatePassword(
+            @RequestParam("oldPassword") String oldPassword,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("hashId") String hashId,
+            @RequestParam("hashedPassword") String hashedPassword) {
+        //TODO 验证 hashId 和 hashedPassword 的有效性
+        return userService.changePassword(oldPassword, newPassword, hashedPassword);
     }
 }

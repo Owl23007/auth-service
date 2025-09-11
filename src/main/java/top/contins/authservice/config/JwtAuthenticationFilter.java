@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,40 +13,34 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-import top.contins.authservice.model.po.UserPo;
-import top.contins.authservice.service.UserService;
 import top.contins.authservice.util.JwtUtil;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 
-/**
- * JWT认证过滤器
- * 用于解析JWT token并设置用户认证信息
- */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
-    @Lazy
     @Autowired
-    private UserService userService;
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain)
+            throws ServletException, IOException {
 
         String token = getTokenFromRequest(request);
 
-        if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
+        if (StringUtils.hasText(token)) {
             try {
-                // 确保是访问token而不是刷新token
-                String tokenType = jwtUtil.getTokenType(token);
-                if (!"access".equals(tokenType)) {
-                    log.warn("收到非访问token，类型：{}", tokenType);
+                if (!isValidAccessToken(token)) {
+                    log.warn("无效或过期的 Access Token");
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -57,24 +50,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (userId != null && username != null
                         && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    // 验证用户是否存在且状态正常
-                    UserPo user = userService.getUserById(userId);
-                    if (user != null && user.getStatus() == UserPo.UserStatus.NORMAL) {
-                        // 创建认证对象
-                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                user, null, new ArrayList<>());
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                        // 设置认证信息到SecurityContext
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    null,
+                                    Collections.emptyList()
+                            );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                        log.debug("用户认证成功：{}, userId: {}", username, userId);
-                    } else {
-                        log.warn("用户不存在或状态异常，用户ID：{}", userId);
-                    }
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    log.debug("JWT 认证成功：用户 {}, ID: {}", username, userId);
                 }
             } catch (Exception e) {
-                log.error("JWT认证过程中发生错误", e);
+                log.error("JWT 认证异常", e);
                 SecurityContextHolder.clearContext();
             }
         }
@@ -83,8 +73,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 从请求中提取JWT token
+     * 综合校验：是否为有效 Access Token（签名 + 未过期 + 类型正确）
      */
+    private boolean isValidAccessToken(String token) {
+        if (!jwtUtil.validateToken(token)) {
+            return false;
+        }
+        String type = jwtUtil.getTokenType(token);
+        return "access".equals(type);
+    }
+
     private String getTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {

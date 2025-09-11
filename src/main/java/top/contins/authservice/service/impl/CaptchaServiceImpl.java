@@ -19,11 +19,14 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class CaptchaServiceImpl implements CaptchaService {
 
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    private final StringRedisTemplate stringRedisTemplate ;
+    private final CaptchaConfig captchaConfig ;
 
     @Autowired
-    private CaptchaConfig captchaConfig;
+    public CaptchaServiceImpl(StringRedisTemplate stringRedisTemplate, CaptchaConfig captchaConfig) {
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.captchaConfig = captchaConfig;
+    }
 
     @Override
     public String generateCaptcha() {

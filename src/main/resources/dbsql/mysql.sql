@@ -12,6 +12,7 @@ CREATE TABLE `user` (
                         `background_image` varchar(255) DEFAULT NULL COMMENT '背景图片URL',
                         `password` varchar(100) NOT NULL COMMENT '密码(加密存储)',
                         `status` int(2) NOT NULL DEFAULT 0 COMMENT '用户状态:0-未验证,1-正常,2-封禁,3-停用',
+                         `role` int(2) NOT NULL DEFAULT 0 COMMENT '用户角色:0-普通用户,1-管理员',
                         `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
                         `last_login_ip` varchar(50) DEFAULT NULL COMMENT '最后登录IP',
                         `last_login_ip_location` varchar(100) DEFAULT NULL COMMENT '最后登录IP位置',
