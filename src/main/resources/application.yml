@@ -1,8 +1,8 @@
 spring:
   application:
-    name: auth-service
+    name: auth
   profiles:
-    active: dev,email
+    active: dev,email,key-dev
 
 server:
   port: 8081
@@ -24,7 +24,6 @@ app:
   working-hours: 9:00-18:00
   # JWT配置
   jwt:
-    secret: ${private.jwt.secret}
     expiration: 86400000 # 24小时
     refresh-expiration: 604800000 # 7天
     issuer: ${private.app.website} # 签发者

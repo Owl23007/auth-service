@@ -1,0 +1,4 @@
+shared-keys:
+  keys:
+    linx: linx-shared-secret-2025!
+    synapse: synapse-shared-secret-2025!

@@ -8,6 +8,7 @@ import org.springframework.context.annotation.PropertySource;
  */
 @Configuration
 @PropertySource("classpath:private-key.properties")
-public class PropertySourceConfig {
-    // 此类用于加载私钥属性文件
+public class SecretKeyProperties {
+    // 用于加载 private-key.properties 文件
 }
+

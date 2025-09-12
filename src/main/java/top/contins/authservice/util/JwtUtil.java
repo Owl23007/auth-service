@@ -1,35 +1,34 @@
 package top.contins.authservice.util;
 
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
+import java.security.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * JWT 工具类（支持双Token + 角色 + 服务隔离 + 精确登出）
+ * JWT 工具类（支持双Token + 角色 + 服务隔离 + 精确登出 + RSA动态生成 + Key ID）
  * <p>
  * Claims 设计：
  * - userId: 用户ID
- * - username: 用户名
+ * - sub: 用户名
  * - email: 邮箱
  * - role: 角色（USER/ADMIN）
  * - scope: 权限域（如 ["linx", "ugc"]）
  * - aud: 受众服务（如 ["linx:create", "ai-agent"]）
  * - jti: JWT唯一ID（用于登出黑名单）
  * - type: token类型（access/refresh）
+ * <p>
+ * Header 扩展：
+ * - kid: 密钥唯一标识（Key ID），用于未来多密钥轮换
  */
 @Component
 @Slf4j
 public class JwtUtil {
-
-    @Value("${app.jwt.secret}")
-    private String secret;
 
     @Value("${app.jwt.expiration:7200000}") // 2小时（毫秒）
     private Long expiration;
@@ -37,28 +36,33 @@ public class JwtUtil {
     @Value("${app.jwt.refresh-expiration:604800000}") // 7天（毫秒）
     private Long refreshExpiration;
 
-    @Value("${app.jwt.issuer}")
+    @Value("${app.jwt.issuer:auth-service}")
     private String issuer;
 
-    private SecretKey signingKey;
+    // 动态生成的密钥对
+    private PrivateKey privateKey;
+    private PublicKey publicKey;
+    private String keyId; // 👈 新增：密钥唯一标识 kid
 
     /**
-     * 初始化：校验密钥长度（启动时一次校验）
+     * 启动时动态生成 RSA 密钥对（2048位）和唯一 Key ID
      */
     @PostConstruct
     public void init() {
-        byte[] keyBytes = secret.getBytes();
-        if (keyBytes.length < 32) {
-            throw new IllegalStateException("JWT 密钥长度必须至少 32 字节，当前: " + keyBytes.length);
-        }
-        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
-    }
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            this.privateKey = keyPair.getPrivate();
+            this.publicKey = keyPair.getPublic();
 
-    /**
-     * 获取签名密钥（已预初始化）
-     */
-    private SecretKey getSigningKey() {
-        return signingKey;
+            // 生成唯一 Key ID —— 可选：UUID / 指纹（如SHA-256公钥摘要）
+            this.keyId = UUID.randomUUID().toString().replace("-", "");
+
+            log.info("RSA密钥对已动态生成，算法：RS256，Key ID: {}", keyId);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("无法生成RSA密钥对", e);
+        }
     }
 
     /**
@@ -93,7 +97,6 @@ public class JwtUtil {
                                        List<String> audience, String jti) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("username", username);
         claims.put("role", role);
         claims.put("type", "refresh");
         claims.put("jti", jti);
@@ -107,7 +110,6 @@ public class JwtUtil {
                                                 String role, List<String> scope, String jti) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("username", username);
         claims.put("email", email);
         claims.put("role", role);
         claims.put("scope", scope != null ? scope : Collections.emptyList());
@@ -116,7 +118,7 @@ public class JwtUtil {
     }
 
     /**
-     * 创建Token
+     * 创建Token —— 使用 RSA 私钥签名 + 嵌入 kid 到 Header
      */
     private String createToken(Map<String, Object> claims, String subject, Long expiration, List<String> audience) {
         Date now = new Date();
@@ -128,10 +130,16 @@ public class JwtUtil {
                 .issuer(issuer)
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(getSigningKey());
+                .signWith(privateKey)
+                .header().add("kid", keyId).and();
 
         if (audience != null && !audience.isEmpty()) {
-            builder.audience().add(Arrays.toString(audience.toArray(String[]::new)));
+            ClaimsMutator.AudienceCollection<?> ac = builder.audience();
+            for (String aud : audience) {
+                if (aud != null && !aud.trim().isEmpty()) {
+                    ac.add(aud.trim());
+                }
+            }
         }
 
         return builder.compact();
@@ -145,11 +153,11 @@ public class JwtUtil {
     }
 
     /**
-     * 验证Token（签名 + 过期）—— 依赖 JJWT 内部校验
+     * 验证Token（签名 + 过期）—— 使用公钥验证
      */
     public boolean validateToken(String token) {
         try {
-            getClaimsFromToken(token); // JJWT 自动校验签名和过期
+            getClaimsFromToken(token); // 自动校验签名和过期
             return true;
         } catch (ExpiredJwtException e) {
             log.warn("Token 已过期: {}", e.getMessage());
@@ -246,7 +254,7 @@ public class JwtUtil {
     }
 
     /**
-     * 从Token中获取受众服务（audience）—— 增强健壮性
+     * 从Token中获取受众服务（audience）
      */
     public List<String> getAudienceFromToken(String token) {
         try {
@@ -296,12 +304,12 @@ public class JwtUtil {
     }
 
     /**
-     * 从Token中获取Claims（统一入口，带异常包装）
+     * 从Token中获取Claims（统一入口，带异常包装）—— 使用公钥验证
      */
     private Claims getClaimsFromToken(String token) {
         try {
             return Jwts.parser()
-                    .verifyWith(getSigningKey())
+                    .verifyWith(publicKey) // 👈 使用公钥验证签名
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -348,5 +356,14 @@ public class JwtUtil {
             log.warn("检查角色失败", e);
             return false;
         }
+    }
+
+    // 👇 可选：提供 kid 获取方法，便于未来暴露 JWKS 端点
+    public String getCurrentKeyId() {
+        return this.keyId;
+    }
+
+    public PublicKey getCurrentPublicKey() {
+        return this.publicKey;
     }
 }

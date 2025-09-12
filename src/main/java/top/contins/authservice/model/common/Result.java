@@ -47,6 +47,16 @@ public class Result<T> {
     }
 
     /**
+     * 成功响应，带有自定义消息和数据。
+     *
+     * @param message 自定义的成功消息
+     * @param data 返回的数据
+     */
+    public static <E> Result<E> success(String message, E data) {
+        return new Result<>(0, message, data);
+    }
+
+    /**
      * 错误响应，包含自定义的消息。
      *
      * @param message 错误消息

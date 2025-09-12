@@ -15,3 +15,7 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
+
+service:
+  registry:
+    shared-key: auth-service-shared-secret-2025!

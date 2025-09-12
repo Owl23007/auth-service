@@ -47,7 +47,8 @@ public class SecurityConfig {
                                 "/auth/login",
                                 "/auth/refresh",
                                 "/user/password/**",
-                                "/auth/validate"
+                                "/auth/validate",
+                                "/service-registry/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
