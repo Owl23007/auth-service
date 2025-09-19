@@ -42,7 +42,7 @@ public class JwtUtil {
     // 动态生成的密钥对
     private PrivateKey privateKey;
     private PublicKey publicKey;
-    private String keyId; // 👈 新增：密钥唯一标识 kid
+    private String keyId;
 
     /**
      * 启动时动态生成 RSA 密钥对（2048位）和唯一 Key ID
@@ -68,7 +68,7 @@ public class JwtUtil {
     /**
      * 生成访问Token
      */
-    public String generateAccessToken(Integer userId, String username, String email,
+    public String generateAccessToken(Long userId, String username, String email,
                                       String role, List<String> scope, List<String> audience) {
         return generateAccessToken(userId, username, email, role, scope, audience, generateJti());
     }
@@ -76,7 +76,7 @@ public class JwtUtil {
     /**
      * 生成访问Token（带指定jti）
      */
-    public String generateAccessToken(Integer userId, String username, String email,
+    public String generateAccessToken(Long userId, String username, String email,
                                       String role, List<String> scope, List<String> audience, String jti) {
         Map<String, Object> claims = buildBaseClaims(userId, username, email, role, scope, jti);
         claims.put("type", "access");
@@ -86,14 +86,14 @@ public class JwtUtil {
     /**
      * 生成刷新Token
      */
-    public String generateRefreshToken(Integer userId, String username, String role, List<String> audience) {
+    public String generateRefreshToken(Long userId, String username, String role, List<String> audience) {
         return generateRefreshToken(userId, username, role, audience, generateJti());
     }
 
     /**
      * 生成刷新Token（带指定jti）
      */
-    public String generateRefreshToken(Integer userId, String username, String role,
+    public String generateRefreshToken(Long userId, String username, String role,
                                        List<String> audience, String jti) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -106,7 +106,7 @@ public class JwtUtil {
     /**
      * 构建基础Claims
      */
-    private Map<String, Object> buildBaseClaims(Integer userId, String username, String email,
+    private Map<String, Object> buildBaseClaims(Long userId, String username, String email,
                                                 String role, List<String> scope, String jti) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -163,7 +163,6 @@ public class JwtUtil {
             log.warn("Token 已过期: {}", e.getMessage());
             return false;
         } catch (JwtException | IllegalArgumentException e) {
-            log.warn("JWT token验证失败: {}", e.getMessage());
             return false;
         }
     }
@@ -191,10 +190,10 @@ public class JwtUtil {
     /**
      * 从Token中获取用户ID
      */
-    public Integer getUserIdFromToken(String token) {
+    public Long getUserIdFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
-            return claims.get("userId", Integer.class);
+            return claims.get("userId", Long.class);
         } catch (Exception e) {
             log.error("从token获取用户ID失败", e);
             return null;
@@ -309,7 +308,7 @@ public class JwtUtil {
     private Claims getClaimsFromToken(String token) {
         try {
             return Jwts.parser()
-                    .verifyWith(publicKey) // 👈 使用公钥验证签名
+                    .verifyWith(publicKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -365,5 +364,36 @@ public class JwtUtil {
 
     public PublicKey getCurrentPublicKey() {
         return this.publicKey;
+    }
+
+    /**
+     * 获取当前公钥的 PEM 格式字符串（用于传输或暴露给其他服务）
+     * 输出示例：
+     * -----BEGIN PUBLIC KEY-----
+     * MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw2dJjXZ5...
+     * -----END PUBLIC KEY-----
+     */
+    public String getPublicKeyAsPem() {
+        if (this.publicKey == null) {
+            throw new IllegalStateException("公钥尚未设置");
+        }
+
+        // 获取公钥的编码字节数组（X.509 格式）
+        byte[] encoded = this.publicKey.getEncoded();
+
+        // Base64 编码
+        String base64 = Base64.getEncoder().encodeToString(encoded);
+
+        // 按每行 64 字符分段（符合 PEM 标准）
+        StringBuilder pem = new StringBuilder();
+        pem.append("-----BEGIN PUBLIC KEY-----\n");
+        int length = base64.length();
+        for (int i = 0; i < length; i += 64) {
+            int endIndex = Math.min(i + 64, length);
+            pem.append(base64, i, endIndex).append("\n");
+        }
+        pem.append("-----END PUBLIC KEY-----\n");
+
+        return pem.toString();
     }
 }

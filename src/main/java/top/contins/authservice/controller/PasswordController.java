@@ -17,11 +17,14 @@ import top.contins.authservice.service.UserService;
 @Validated
 public class PasswordController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+    private final RedisEmailTokenService redisEmailTokenService;
 
     @Autowired
-    private RedisEmailTokenService redisEmailTokenService;
+    public PasswordController(UserService userService, RedisEmailTokenService redisEmailTokenService) {
+        this.userService = userService;
+        this.redisEmailTokenService = redisEmailTokenService;
+    }
 
     /**
      * 发送密码重置邮件
@@ -57,6 +60,7 @@ public class PasswordController {
      */
     @PostMapping("/reset")
     public Result<String> resetPassword(@RequestBody @Validated ResetPasswordRequest request) {
+        // todo: 添加密码hash校验 / 复杂度校验
         return userService.resetPassword(request.getToken(), request.getNewPassword(), request.getConfirmPassword());
     }
 }

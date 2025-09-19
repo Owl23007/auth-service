@@ -35,8 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
+        // 获取 JWT
         String token = getTokenFromRequest(request);
 
+        // 验证 JWT
         if (StringUtils.hasText(token)) {
             try {
                 if (!isValidAccessToken(token)) {
@@ -45,20 +47,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                Integer userId = jwtUtil.getUserIdFromToken(token);
+                // 1. 从 JWT 中提取用户信息
+                Long userId = jwtUtil.getUserIdFromToken(token);
                 String username = jwtUtil.getUsernameFromToken(token);
 
+                // 2. 创建 Authentication 对象并存储在 SecurityContext 中
                 if (userId != null && username != null
                         && SecurityContextHolder.getContext().getAuthentication() == null) {
 
+                    // 创建 Authentication 对象, 将用户 ID 存储在认证对象中
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userId,
                                     null,
                                     Collections.emptyList()
                             );
+
+                    // 设置请求详情
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
+                    // 将认证对象存储在 SecurityContext 中
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
                     log.debug("JWT 认证成功：用户 {}, ID: {}", username, userId);
@@ -69,6 +77,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        // 继续处理请求
         filterChain.doFilter(request, response);
     }
 

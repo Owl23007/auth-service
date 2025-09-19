@@ -48,9 +48,6 @@ public class MailServiceImpl implements MailService {
     @Override
     public void sendEmailWithTemplate(String to, String templateType, Map<String, Object> placeholders) {
         String templateContent = mailTemplateConfig.getTemplateContent(templateType);
-        if (!StringUtils.hasText(templateContent)) {
-            throw new IllegalArgumentException("模板未找到: " + templateType);
-        }
 
         // 添加通用占位符
         addCommonPlaceholders(placeholders);
@@ -62,10 +59,6 @@ public class MailServiceImpl implements MailService {
     @Override
     public String getHTMLContent(String templateType, Map<String, Object> placeholders) {
         String templateContent = mailTemplateConfig.getTemplateContent(templateType);
-        if (!StringUtils.hasText(templateContent)) {
-            throw new IllegalArgumentException("模板未找到: " + templateType);
-        }
-
         // 添加通用占位符
         addCommonPlaceholders(placeholders);
 

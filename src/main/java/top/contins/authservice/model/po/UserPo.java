@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @TableName("user")
 public class UserPo {
     @TableId(value = "user_id", type = IdType.AUTO)
-    private Integer userId;
+    private Long userId;
     private String username;
     private String nickname;
 
@@ -70,6 +70,5 @@ public class UserPo {
         UserStatus(int value) {
             this.value = value;
         }
-
     }
 }

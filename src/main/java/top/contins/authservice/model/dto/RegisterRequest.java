@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class RegisterRequest {
-    @Pattern(regexp = "^[a-zA-Z0-9]{5,16}$")
+    @Pattern(regexp = "^[a-zA-Z0-9]{5,16}$") // 5-16位字母数字
     @NotNull
     public String username;
 

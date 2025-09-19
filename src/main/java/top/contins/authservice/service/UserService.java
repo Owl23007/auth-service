@@ -1,8 +1,11 @@
 package top.contins.authservice.service;
 
+import org.springframework.transaction.annotation.Transactional;
 import top.contins.authservice.model.common.Result;
 import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.model.po.UserPo;
+
+import java.util.List;
 
 /**
  * 用户服务接口
@@ -10,12 +13,19 @@ import top.contins.authservice.model.po.UserPo;
 public interface UserService {
 
     /**
+     * 获取用户列表
+     *
+     * @return List<Long> 用户ID列表
+     */
+    List<Long> getAll();
+
+    /**
      * 根据用户ID获取用户信息
      *
      * @param userId 用户ID
      * @return 用户信息
      */
-    UserPo getUserById(Integer userId);
+    UserPo getUserById(Long userId);
 
     /**
      * 根据用户名获取用户信息
@@ -47,7 +57,10 @@ public interface UserService {
      * @param userId 用户ID
      * @return 是否删除成功
      */
-    boolean deleteUser(Integer userId);
+    boolean deleteUser(Long userId);
+
+    @Transactional
+    boolean deleteUser();
 
     /**
      * 用户注册
@@ -131,5 +144,5 @@ public interface UserService {
      *
      * @return 当前用户ID
      */
-    Integer getCurrentUserId();
+    Long getCurrentUserId();
 }

@@ -1,6 +1,7 @@
 package top.contins.authservice.service.impl;
 
 import com.wf.captcha.GifCaptcha;
+import com.wf.captcha.SpecCaptcha;
 import com.wf.captcha.base.Captcha;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,7 @@ public class CaptchaServiceImpl implements CaptchaService {
     public String generateCaptcha() {
         try {
             // 生成验证码图片
-            Captcha captcha = new GifCaptcha(
+            Captcha captcha = new SpecCaptcha(
                     captchaConfig.getWidth(),
                     captchaConfig.getHeight(),
                     captchaConfig.getCharCount());

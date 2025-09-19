@@ -1,16 +1,20 @@
 package top.contins.authservice.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import top.contins.authservice.mapper.UserMapper;
 import top.contins.authservice.model.common.Result;
+import top.contins.authservice.model.common.SyncEvent;
 import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.model.po.UserPo;
 import top.contins.authservice.model.vo.LoginResponse;
@@ -22,6 +26,7 @@ import top.contins.authservice.util.JwtUtil;
 import top.contins.authservice.util.MailContentUtil;
 import top.contins.authservice.util.ObjectConvertUtil;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +38,8 @@ import java.util.Map;
 @Service
 @Slf4j
 public class UserServiceImpl implements UserService {
+
+
     @Value("${app.name}")
     private String appName;
 
@@ -54,6 +61,9 @@ public class UserServiceImpl implements UserService {
     @Value("${app.working-hours:9:00-18:00}")
     private String workingHours;
 
+
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
     private final UserMapper userMapper;
     private final MailService mailService;
     private final MailContentUtil mailContentUtil;
@@ -65,7 +75,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     public UserServiceImpl(UserMapper userMapper, MailService mailService,
                            MailContentUtil mailContentUtil, RedisEmailTokenService redisEmailTokenService,
-                           PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CaptchaService captchaService) {
+                           PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CaptchaService captchaService,
+                           StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.userMapper = userMapper;
         this.mailService = mailService;
         this.mailContentUtil = mailContentUtil;
@@ -73,10 +84,12 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.captchaService = captchaService;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public Integer getCurrentUserId() {
+    public Long getCurrentUserId() {
         // 从Spring Security上下文获取当前登录用户的ID
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated() &&
@@ -87,7 +100,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserPo getUserById(Integer userId) {
+    public List<Long> getAll() {
+        LambdaQueryWrapper<UserPo> queryWrapper = new LambdaQueryWrapper<>();
+        // 筛选出状态为NORMAL的用户
+        return userMapper.selectList(queryWrapper).stream()
+                .filter(user -> user.getStatus()== UserPo.UserStatus.NORMAL).map(UserPo::getUserId).toList();
+    }
+
+    @Override
+    public UserPo getUserById(Long userId) {
         return userMapper.selectById(userId);
     }
 
@@ -112,9 +133,28 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean deleteUser(Integer userId) {
+    public boolean deleteUser(Long userId) {
+        // todo : admin only
         int result = userMapper.deleteById(userId);
         return result > 0;
+    }
+
+    @Transactional
+    @Override
+    public boolean deleteUser() {
+        Long userId = getCurrentUserId();
+        UserPo user = userMapper.selectById(userId);
+        if (user == null) {
+            return false;
+        }
+        // 软删除：标记为 DEACTIVATED
+        user.setStatus(UserPo.UserStatus.DEACTIVATED);
+        userMapper.updateById(user);
+
+        // 发布用户删除事件
+        publishUserEvent("delete", userId);
+
+        return true;
     }
 
     @Override
@@ -265,6 +305,7 @@ public class UserServiceImpl implements UserService {
         updateUser(user);
 
         log.info("用户账户已激活：{}", email);
+        publishUserEvent("create", user.getUserId());
         return Result.success("账户激活成功，欢迎使用我们的服务！");
     }
 
@@ -353,7 +394,6 @@ public class UserServiceImpl implements UserService {
             return Result.error("账户已停用，请联系管理员");
         }
 
-        // --- 修复点: 生成 Token ---
         // 从 UserPo 中获取真实的角色名称 (如 "USER" 或 "ADMIN")
         String role = user.getRole().name();
         // 定义受众服务列表，例如用户登录后默认可以访问认证服务和用户资料服务
@@ -361,22 +401,10 @@ public class UserServiceImpl implements UserService {
 
         String accessToken = jwtUtil.generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail(), role, null, audience);
         String refreshToken = jwtUtil.generateRefreshToken(user.getUserId(), user.getUsername(), role, audience);
-        // --- 修复点结束 ---
-
-        // 构建响应
-        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
-                user.getUserId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getNickname(),
-                user.getStatus().getValue());
 
         LoginResponse response = new LoginResponse(
                 accessToken,
-                refreshToken,
-                "Bearer",
-                86400L, // 24小时
-                userInfo);
+                refreshToken);
 
         log.info("用户登录成功：{}", user.getUsername());
         return Result.success(response);
@@ -384,57 +412,59 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result<?> refreshToken(String refreshToken) {
-        // 验证refresh token
+        // 1. 验证refresh token
         if (!jwtUtil.validateToken(refreshToken)) {
             return Result.error("Refresh token无效或已过期");
         }
 
-        // 检查token类型
+        // 2. 检查token类型
         String tokenType = jwtUtil.getTokenType(refreshToken);
         if (!"refresh".equals(tokenType)) {
             return Result.error("Token类型错误");
         }
 
-        // 获取用户信息
+        // 3. 获取用户信息
         String username = jwtUtil.getUsernameFromToken(refreshToken);
-        Integer userId = jwtUtil.getUserIdFromToken(refreshToken);
+        Long userId = jwtUtil.getUserIdFromToken(refreshToken);
 
+        // 4. 验证Token信息
         if (username == null || userId == null) {
             return Result.error("Token信息无效");
         }
 
-        // 验证用户是否存在且状态正常
+        // 5. 验证用户是否存在且状态正常
         UserPo user = getUserByUsername(username);
         if (user == null || user.getStatus() != UserPo.UserStatus.NORMAL) {
             return Result.error("用户状态异常，请重新登录");
         }
 
-        // --- 修复点: 生成新的 Token ---
-        // 从旧的 refreshToken 中提取角色和受众，以保持权限一致
+        // 6. 获取 jti，用于标记“已使用”
+        String jti = jwtUtil.getJtiFromToken(refreshToken);
+        if (jti == null) {
+            return Result.error("Refresh token 无效");
+        }
+
+        // 7. 检查是否已被使用（防重放）
+        String usedKey = "refresh_token:used:" + jti;
+        Boolean isUsed = redisTemplate.hasKey(usedKey);
+        if (isUsed) {
+            return Result.error("Refresh token 已失效");
+        }
+
+        // 8. 标记为已使用（立即废弃旧 refresh token）
+        redisTemplate.opsForValue().set(usedKey, "1", Duration.ofDays(7)); // 保留7天，防止重放
+
+        // 9. 从旧的 refreshToken 中提取角色和受众，以保持权限一致
         String role = jwtUtil.getRoleFromToken(refreshToken);
         List<String> audience = jwtUtil.getAudienceFromToken(refreshToken);
 
+        // 10. 生成新的 token
         String newAccessToken = jwtUtil.generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail(), role, null, audience);
         String newRefreshToken = jwtUtil.generateRefreshToken(user.getUserId(), user.getUsername(), role, audience);
-        // --- 修复点结束 ---
 
-        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo(
-                user.getUserId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getNickname(),
-                user.getStatus().getValue());
-
-        LoginResponse response = new LoginResponse(
-                newAccessToken,
-                newRefreshToken,
-                "Bearer",
-                86400L,
-                userInfo);
-
+        LoginResponse response = new LoginResponse(newAccessToken, newRefreshToken);
         return Result.success(response);
     }
-
     @Override
     public Result<String> resetPassword(String token, String newPassword, String confirmPassword) {
         // 验证密码确认
@@ -480,7 +510,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // 获取当前用户
-        Integer currentUserId = getCurrentUserId();
+        Long currentUserId = getCurrentUserId();
         if (currentUserId == null) {
             return Result.error("用户未登录");
         }
@@ -508,4 +538,24 @@ public class UserServiceImpl implements UserService {
         return Result.success("密码修改成功");
     }
 
+
+
+    public void publishUserEvent(String eventType, Long userId) {
+        try {
+            // 构造事件对象（与消费者一致）
+            SyncEvent event = new SyncEvent(eventType, userId.toString(), getUserById(userId).getStatus().toString());
+
+            // 序列化为 JSON
+            String json = objectMapper.writeValueAsString(event);
+
+            // 写入 Redis Stream（
+            redisTemplate.opsForStream()
+                    .add("sync:auth_to_linx:events", Map.of("event", json)); // key-value 形式存储
+
+            log.info("已发布用户事件: {} - userId={}", eventType, userId);
+
+        } catch (Exception e) {
+            log.error("发布用户事件失败: userId={}", userId, e);
+        }
+    }
 }

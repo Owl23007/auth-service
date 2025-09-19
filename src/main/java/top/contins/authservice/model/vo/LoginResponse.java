@@ -21,30 +21,4 @@ public class LoginResponse {
      * 刷新token
      */
     private String refreshToken;
-
-    /**
-     * token类型
-     */
-    private String tokenType = "Bearer";
-
-    /**
-     * 过期时间（秒）
-     */
-    private Long expiresIn;
-
-    /**
-     * 用户信息
-     */
-    private UserInfo userInfo;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UserInfo {
-        private Integer userId;
-        private String username;
-        private String email;
-        private String nickname;
-        private Integer status;
-    }
 }

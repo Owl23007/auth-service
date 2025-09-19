@@ -8,13 +8,19 @@ import top.contins.authservice.model.common.Result;
 import top.contins.authservice.model.po.UserPo;
 import top.contins.authservice.service.UserService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/user")
 @Validated
 public class UserController {
 
+    private final UserService userService;
+
     @Autowired
-    private UserService userService;
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     /**
      * 获取当前用户信息
@@ -23,7 +29,7 @@ public class UserController {
      */
     @GetMapping("/profile")
     public Result<UserPo> getCurrentUserProfile() {
-        Integer userId = userService.getCurrentUserId();
+        Long userId = userService.getCurrentUserId();
         if (userId == null) {
             return Result.error("用户未登录或不存在");
         }
@@ -51,7 +57,7 @@ public class UserController {
      * @return 用户信息
      */
     @GetMapping("/{userId}")
-    public Result<UserPo> getUserById(@PathVariable("userId") Integer userId) {
+    public Result<UserPo> getUserById(@PathVariable("userId") Long userId) {
         UserPo user = userService.getUserById(userId);
         return Result.success(user);
     }
@@ -86,5 +92,15 @@ public class UserController {
             @RequestParam("hashedPassword") String hashedPassword) {
         //TODO 验证 hashId 和 hashedPassword 的有效性
         return userService.changePassword(oldPassword, newPassword, hashedPassword);
+    }
+
+    /**
+     * 获取所有用户ID列表
+     *
+     * @return 用户ID列表
+     */
+    @GetMapping("/all")
+    public List<Long> getAllUsers(){
+        return userService.getAll();
     }
 }

@@ -38,6 +38,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public Result<?> login(@RequestBody @Validated UserLoginRequest loginRequest) {
+        //TODO: 风控，登录频率限制、IP黑名单等 未来实现用户端的账号管理功能
         return userService.login(loginRequest.getAccount(), loginRequest.getPassword());
     }
 
@@ -48,7 +49,16 @@ public class AuthController {
      * @return 新的access token
      */
     @PostMapping("/refresh")
-    public Result<?> refreshToken(@RequestParam("refreshToken") String refreshToken) {
+    public Result<?> refreshToken(@RequestHeader(value = "Refresh-Token", required = false) String refreshToken) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            return Result.error("Refresh token 不能为空");
+        }
+
+        // 兼容使用 Bearer 前缀
+        if (refreshToken.startsWith("Bearer ")) {
+            refreshToken = refreshToken.substring(7).trim();
+        }
+
         return userService.refreshToken(refreshToken);
     }
 
@@ -59,7 +69,7 @@ public class AuthController {
      */
     @GetMapping("/captcha")
     public Result<String> getCaptcha() {
-        String captcha = captchaService.generateCaptcha();
+        String captcha = captchaService.generateCaptcha();  // 返回 id: base64
         return Result.success(captcha);
     }
 
@@ -71,7 +81,7 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public Result<String> logout(@RequestHeader("Authorization") String token) {
-        // 对于JWT无状态token，服务端不需要维护状态
+        // todo ：实现更复杂的登出逻辑
         // 客户端删除本地存储的token即可实现登出
         log.info("用户登出");
         return Result.success("登出成功");

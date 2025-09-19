@@ -131,10 +131,11 @@ public class ServiceRegistryController {
 
         log.info(" {} : {} -> {}", message, request.getServiceName(), originalRequest.getEndpoint());
 
-        String jwt = String.valueOf(jwtUtil.getCurrentPublicKey());
+        String jwt = jwtUtil.getPublicKeyAsPem();
 
         return Result.success(message,jwt);
     }
+
     @GetMapping("/routes")
     public Result<Map<String, ServiceInstance>> getRoutes() {
         return Result.success(SERVICE_REGISTRY);

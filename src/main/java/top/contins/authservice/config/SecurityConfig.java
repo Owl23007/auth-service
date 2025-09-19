@@ -17,7 +17,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean
@@ -27,7 +27,8 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
@@ -48,7 +49,8 @@ public class SecurityConfig {
                                 "/auth/refresh",
                                 "/user/password/**",
                                 "/auth/validate",
-                                "/service-registry/**"
+                                "/service-registry/**",
+                                "/user/all"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
