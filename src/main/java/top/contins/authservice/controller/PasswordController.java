@@ -5,7 +5,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import top.contins.authservice.model.common.Result;
 import top.contins.authservice.model.dto.ResetPasswordRequest;
-import top.contins.authservice.service.RedisEmailTokenService;
+import top.contins.authservice.service.MailRedisTokenService;
 import top.contins.authservice.service.UserService;
 
 /**
@@ -18,12 +18,12 @@ import top.contins.authservice.service.UserService;
 public class PasswordController {
 
     private final UserService userService;
-    private final RedisEmailTokenService redisEmailTokenService;
+    private final MailRedisTokenService mailRedisTokenService;
 
     @Autowired
-    public PasswordController(UserService userService, RedisEmailTokenService redisEmailTokenService) {
+    public PasswordController(UserService userService, MailRedisTokenService mailRedisTokenService) {
         this.userService = userService;
-        this.redisEmailTokenService = redisEmailTokenService;
+        this.mailRedisTokenService = mailRedisTokenService;
     }
 
     /**
@@ -45,7 +45,7 @@ public class PasswordController {
      */
     @GetMapping("/validate")
     public Result<String> validateResetPasswordToken(@RequestParam("token") String token) {
-        if (redisEmailTokenService.tokenExists(token, "reset-password")) {
+        if (mailRedisTokenService.tokenExists(token, "reset-password")) {
             return Result.success("Token有效");
         } else {
             return Result.error("Token无效或已过期");

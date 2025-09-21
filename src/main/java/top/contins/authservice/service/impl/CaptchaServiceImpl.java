@@ -1,6 +1,5 @@
 package top.contins.authservice.service.impl;
 
-import com.wf.captcha.GifCaptcha;
 import com.wf.captcha.SpecCaptcha;
 import com.wf.captcha.base.Captcha;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class CaptchaServiceImpl implements CaptchaService {
-
     private final StringRedisTemplate stringRedisTemplate ;
     private final CaptchaConfig captchaConfig ;
 
@@ -32,18 +30,18 @@ public class CaptchaServiceImpl implements CaptchaService {
     @Override
     public String generateCaptcha() {
         try {
-            // 生成验证码图片
+            // 1. 生成验证码图片
             Captcha captcha = new SpecCaptcha(
                     captchaConfig.getWidth(),
                     captchaConfig.getHeight(),
                     captchaConfig.getCharCount());
             captcha.setCharType(Captcha.TYPE_DEFAULT);
 
-            // 生成唯一ID
+            // 2. 生成唯一ID
             String captchaId = UUID.randomUUID().toString();
             String captchaKey = captchaConfig.getRedisKeyPrefix() + captchaId;
 
-            // 存储到Redis，设置过期时间
+            // 3. 存储到Redis，设置过期时间
             stringRedisTemplate.opsForValue().set(
                     captchaKey,
                     captcha.text().toLowerCase(),

@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import top.contins.authservice.service.RedisEmailTokenService;
+import top.contins.authservice.service.MailRedisTokenService;
 
 import java.util.Set;
 import java.util.UUID;
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 @Slf4j
-public class RedisEmailTokenServiceImpl implements RedisEmailTokenService {
+public class MailRedisTokenServiceImpl implements MailRedisTokenService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;

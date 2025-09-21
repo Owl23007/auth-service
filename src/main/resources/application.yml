@@ -23,7 +23,28 @@ app:
     phone: ${app.phone}
   working-hours: 9:00-18:00
   # JWT配置
-  jwt:
-    expiration: 86400000 # 24小时
-    refresh-expiration: 604800000 # 7天
-    issuer: ${private.app.website} # 签发者
+
+jwt:
+  expire:
+    access-token: 3600000 # 1小时
+    refresh-token: 604800000 # 7天
+  issuer: ${app.name}
+
+
+redis:
+  expire-config:
+    - name: email-token
+      key: email-token:*
+      expire: 86400000 # 24小时
+    - name: jwt
+      key: jwt:*
+      expire: 86400000 # 24小时
+
+aliyun:
+  oss:
+    endpoint: oss-cn-shenzhen.aliyuncs.com
+    accessKeyId: ${aliyun.accessKeyId}
+    accessKeySecret: ${aliyun.accessKeySecret}
+    bucketName: ${aliyun.bucketName}
+    roleArn: ${aliyun.roleArn}
+  cdnPoint: ${CDNPoint}

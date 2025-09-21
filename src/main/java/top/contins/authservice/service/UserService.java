@@ -1,8 +1,9 @@
 package top.contins.authservice.service;
 
-import org.springframework.transaction.annotation.Transactional;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import top.contins.authservice.model.common.Result;
 import top.contins.authservice.model.dto.RegisterRequest;
+import top.contins.authservice.model.dto.UserLoginRequest;
 import top.contins.authservice.model.po.UserPo;
 
 import java.util.List;
@@ -15,9 +16,15 @@ public interface UserService {
     /**
      * 获取用户列表
      *
-     * @return List<Long> 用户ID列表
+     * @param pageSize 每页大小
+     * @param pageNum  页码
+     * @param keyword  搜索关键字
+     * @param status   用户状态 （可选：ACTIVE, INACTIVE, BANNED,DEACTIVATED,ALL）
+     * @param sortBy     排序字段  （可选：username, email, status, created_at, updated_at）
+     * @param sortOrder 排序方式  （可选：asc, desc）
+     * @return List<UserPo> 用户ID列表
      */
-    List<Long> getAll();
+    Page<UserPo> getUserList(int pageSize, int pageNum, String status, String keyword, String sortBy, String sortOrder);
 
     /**
      * 根据用户ID获取用户信息
@@ -47,9 +54,8 @@ public interface UserService {
      * 更新用户信息
      *
      * @param user 用户信息
-     * @return 更新后的用户信息
      */
-    UserPo updateUser(UserPo user);
+    void updateUser(UserPo user);
 
     /**
      * 删除用户
@@ -59,8 +65,12 @@ public interface UserService {
      */
     boolean deleteUser(Long userId);
 
-    @Transactional
-    boolean deleteUser();
+    /**
+     * 软删除用户
+     *
+     * @return 是否删除成功
+     */
+    boolean softDeleteUser();
 
     /**
      * 用户注册
@@ -73,11 +83,10 @@ public interface UserService {
     /**
      * 用户登录
      *
-     * @param account  用户名或邮箱
-     * @param password 密码
+     * @param request 登录请求
      * @return 登录结果
      */
-    Result<?> login(String account, String password);
+    Result<?> login(UserLoginRequest request);
 
     /**
      * 刷新token
@@ -130,14 +139,6 @@ public interface UserService {
      * @return 登出结果
      */
     Result<String> logout(String token);
-
-    /**
-     * 验证token有效性
-     *
-     * @param token 待验证的token
-     * @return 验证结果
-     */
-    Result<String> validateToken(String token);
 
     /*
      * 获取当前用户ID

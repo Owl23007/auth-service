@@ -2,7 +2,7 @@ package top.contins.authservice.util;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import top.contins.authservice.service.RedisEmailTokenService;
+import top.contins.authservice.service.MailRedisTokenService;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,7 +12,7 @@ import java.util.Map;
 public class MailContentUtil {
 
     @Autowired
-    private RedisEmailTokenService redisEmailTokenService;
+    private MailRedisTokenService mailRedisTokenService;
 
     /**
      * 生成邮箱激活链接
@@ -23,7 +23,7 @@ public class MailContentUtil {
      */
     public String generateActivationUrl(String email, String baseUrl) {
         // 生成token并存储到Redis，24小时过期
-        String token = redisEmailTokenService.generateAndStoreToken(email, "activation", 24 * 60);
+        String token = mailRedisTokenService.generateAndStoreToken(email, "activation", 24 * 60);
 
         // 返回激活链接
         return baseUrl + "/registration/activate?token=" + token;
@@ -38,7 +38,7 @@ public class MailContentUtil {
      */
     public String generateResetPasswordUrl(String email, String baseUrl) {
         // 生成token并存储到Redis，2小时过期
-        String token = redisEmailTokenService.generateAndStoreToken(email, "reset-password", 2 * 60);
+        String token = mailRedisTokenService.generateAndStoreToken(email, "reset-password", 2 * 60);
 
         return baseUrl + "/auth/resetPassword?token=" + token;
     }

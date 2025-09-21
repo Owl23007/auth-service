@@ -3,7 +3,7 @@ package top.contins.authservice.service;
 /**
  * Redis邮件token服务接口
  */
-public interface RedisEmailTokenService {
+public interface MailRedisTokenService {
 
     /**
      * 生成并存储邮件验证token

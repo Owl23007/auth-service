@@ -2,7 +2,6 @@ package top.contins.authservice.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import top.contins.authservice.model.common.Result;
@@ -10,7 +9,6 @@ import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.service.MailService;
 import top.contins.authservice.service.UserService;
 
-import javax.swing.text.html.HTML;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -38,8 +38,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public Result<?> login(@RequestBody @Validated UserLoginRequest loginRequest) {
-        //TODO: 风控，登录频率限制、IP黑名单等 未来实现用户端的账号管理功能
-        return userService.login(loginRequest.getAccount(), loginRequest.getPassword());
+        return userService.login(loginRequest);
     }
 
     /**
@@ -75,16 +74,27 @@ public class AuthController {
 
     /**
      * 用户登出
+     * 通过access token继承refresh token的jti进行登出
+     * 将jti加入Redis黑名单， 持续时间为token的剩余有效期
      *
-     * @param token 用户token
+     * @param token 用户access token
      * @return 登出结果
      */
     @PostMapping("/logout")
-    public Result<String> logout(@RequestHeader("Authorization") String token) {
-        // todo ：实现更复杂的登出逻辑
-        // 客户端删除本地存储的token即可实现登出
-        log.info("用户登出");
-        return Result.success("登出成功");
+    public Result<String> logout(
+            @RequestHeader("Authorization") String token,
+            @RequestHeader(value = "Refresh-Token", required = false) String refreshToken) {
+
+        // 优先使用 refresh token  进行登出
+        if (refreshToken != null) {
+            Result<String> result = userService.logout(refreshToken);
+            // 只要 refresh token 处理成功，直接返回（因为 jti 相同，access token 也会失效）
+            if (result.getCode() == 0) {
+                return result;
+            }
+        }
+        // 处理 access token
+        return userService.logout(token);
     }
 
     /**

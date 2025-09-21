@@ -2,9 +2,12 @@ package top.contins.authservice.util;
 
 import io.jsonwebtoken.*;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import top.contins.authservice.model.po.UserPo;
+import top.contins.authservice.model.vo.TokenResponse;
 
 import java.security.*;
 import java.util.*;
@@ -20,7 +23,7 @@ import java.util.stream.Collectors;
  * - role: 角色（USER/ADMIN）
  * - scope: 权限域（如 ["linx", "ugc"]）
  * - aud: 受众服务（如 ["linx:create", "ai-agent"]）
- * - jti: JWT唯一ID（用于登出黑名单）
+ * - jti: JWT唯一ID（用于黑名单）
  * - type: token类型（access/refresh）
  * <p>
  * Header 扩展：
@@ -30,13 +33,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class JwtUtil {
 
-    @Value("${app.jwt.expiration:7200000}") // 2小时（毫秒）
-    private Long expiration;
+    @Value("${jwt.expire.access-token:3600000}") // default 1小时
+    private Long accessTokenExpiration;
 
-    @Value("${app.jwt.refresh-expiration:604800000}") // 7天（毫秒）
-    private Long refreshExpiration;
+    @Getter
+    @Value("${jwt.expire.refresh-token:604800000}") // default 7天
+    private  Long refreshTokenExpiration;
 
-    @Value("${app.jwt.issuer:auth-service}")
+    @Value("${jwt.issuer:auth-service}")
     private String issuer;
 
     // 动态生成的密钥对
@@ -65,13 +69,15 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * 生成访问Token
-     */
-    public String generateAccessToken(Long userId, String username, String email,
-                                      String role, List<String> scope, List<String> audience) {
-        return generateAccessToken(userId, username, email, role, scope, audience, generateJti());
+    public TokenResponse generateToken(UserPo user, String role, List<String> scope, List<String> audience) {
+        // 生成新的 token
+        String newJti = generateJti();
+        String newAccessToken = generateAccessToken(user.getUserId(), user.getUsername(), user.getEmail(), role, scope, audience,newJti);
+        String newRefreshToken = generateRefreshToken(user.getUserId(), user.getUsername(), role, audience,newJti);
+
+        return new TokenResponse(newAccessToken, newRefreshToken);
     }
+
 
     /**
      * 生成访问Token（带指定jti）
@@ -80,14 +86,7 @@ public class JwtUtil {
                                       String role, List<String> scope, List<String> audience, String jti) {
         Map<String, Object> claims = buildBaseClaims(userId, username, email, role, scope, jti);
         claims.put("type", "access");
-        return createToken(claims, username, expiration, audience);
-    }
-
-    /**
-     * 生成刷新Token
-     */
-    public String generateRefreshToken(Long userId, String username, String role, List<String> audience) {
-        return generateRefreshToken(userId, username, role, audience, generateJti());
+        return createToken(claims, username, accessTokenExpiration, audience);
     }
 
     /**
@@ -100,7 +99,7 @@ public class JwtUtil {
         claims.put("role", role);
         claims.put("type", "refresh");
         claims.put("jti", jti);
-        return createToken(claims, username, refreshExpiration, audience);
+        return createToken(claims, username, refreshTokenExpiration, audience);
     }
 
     /**
@@ -146,7 +145,7 @@ public class JwtUtil {
     }
 
     /**
-     * 生成JWT唯一ID（jti）
+     * 生成JWT唯一ID（jti）`
      */
     public String generateJti() {
         return UUID.randomUUID().toString().replace("-", "");
@@ -357,7 +356,7 @@ public class JwtUtil {
         }
     }
 
-    // 👇 可选：提供 kid 获取方法，便于未来暴露 JWKS 端点
+    // 提供 kid 获取方法，便于未来暴露 JWKS 端点
     public String getCurrentKeyId() {
         return this.keyId;
     }

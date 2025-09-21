@@ -3,7 +3,6 @@ package top.contins.authservice.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.BeanUtils;
-import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.Field;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
  * @author contins
  * @since 2025-08-17
  */
-@Component
 public class ObjectConvertUtil {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
