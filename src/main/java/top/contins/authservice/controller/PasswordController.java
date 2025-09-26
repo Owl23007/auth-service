@@ -1,5 +1,6 @@
 package top.contins.authservice.controller;
 
+import jakarta.validation.constraints.Email;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +34,7 @@ public class PasswordController {
      * @return 发送结果
      */
     @PostMapping("/send-reset")
-    public Result<String> sendResetPasswordEmail(@RequestParam("email") String email) {
+    public Result<String> sendResetPasswordEmail(@RequestParam("email") @Email String email) {
         return userService.sendResetPasswordEmail(email);
     }
 
@@ -60,7 +61,6 @@ public class PasswordController {
      */
     @PostMapping("/reset")
     public Result<String> resetPassword(@RequestBody @Validated ResetPasswordRequest request) {
-        // todo: 添加密码hash校验 / 复杂度校验
-        return userService.resetPassword(request.getToken(), request.getNewPassword(), request.getConfirmPassword());
+        return userService.resetPassword(request.getToken(), request.getNewPassword());
     }
 }

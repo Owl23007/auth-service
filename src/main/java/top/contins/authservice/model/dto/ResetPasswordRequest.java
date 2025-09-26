@@ -20,10 +20,4 @@ public class ResetPasswordRequest {
      */
     @NotBlank(message = "新密码不能为空")
     private String newPassword;
-
-    /**
-     * 确认密码
-     */
-    @NotBlank(message = "确认密码不能为空")
-    private String confirmPassword;
 }

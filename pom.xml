@@ -122,6 +122,19 @@
             <artifactId>aliyun-sdk-oss</artifactId>
             <version>3.17.4</version>
         </dependency>
+
+        <!-- Aspect -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+
+        <!-- nacos -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+            <version>2025.0.0.0-preview</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -130,6 +143,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
+                    <compilerArgs>
+                        <arg>-parameters</arg> <!-- 保留参数名 -->
+                    </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

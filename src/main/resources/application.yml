@@ -3,6 +3,13 @@ spring:
     name: auth
   profiles:
     active: dev,email,key-dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        username: nacos
+        password: ${nacos.password}
+
 
 server:
   port: 8081

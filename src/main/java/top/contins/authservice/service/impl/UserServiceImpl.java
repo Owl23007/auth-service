@@ -2,20 +2,16 @@ package top.contins.authservice.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import top.contins.authservice.mapper.UserMapper;
 import top.contins.authservice.model.common.Result;
-import top.contins.authservice.model.common.SyncEvent;
 import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.model.dto.UserLoginRequest;
 import top.contins.authservice.model.po.UserPo;
@@ -64,7 +60,6 @@ public class UserServiceImpl implements UserService {
 
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
     private final UserMapper userMapper;
     private final MailService mailService;
     private final MailContentUtil mailContentUtil;
@@ -77,7 +72,7 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserMapper userMapper, MailService mailService,
                            MailContentUtil mailContentUtil, MailRedisTokenService mailRedisTokenService,
                            PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CaptchaService captchaService,
-                           StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+                           StringRedisTemplate redisTemplate) {
         this.userMapper = userMapper;
         this.mailService = mailService;
         this.mailContentUtil = mailContentUtil;
@@ -86,18 +81,15 @@ public class UserServiceImpl implements UserService {
         this.jwtUtil = jwtUtil;
         this.captchaService = captchaService;
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Override
-    public Long getCurrentUserId() {
-        // 从Spring Security上下文获取当前登录用户的ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated() &&
-                authentication.getPrincipal() instanceof UserPo user) {
-            return user.getUserId();
-        }
-        return null;
+    public UserPo updateUserProfile(Long userId, Object request) {
+        // 实现用户资料更新逻辑
+        UserPo user = getUserById(userId);
+        // 这里需要根据实际的 request 对象类型进行处理
+        // 暂时返回用户对象，实际实现需要根据业务需求完善
+        return user;
     }
 
 
@@ -165,21 +157,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void updateUser(UserPo user) {
-        userMapper.updateById(user);
+    public int updateUser(UserPo user) {
+       return userMapper.updateById(user);
     }
 
     @Override
-    public boolean deleteUser(Long userId) {
-        // todo : admin only
-        int result = userMapper.deleteById(userId);
-        return result > 0;
+    public int updateUserStatus(UserPo.UserStatus status, Long userId) {
+        return 0;
+    }
+
+    @Override
+    public int deleteUser(Long userId) {
+        return userMapper.deleteById(userId);
     }
 
     @Transactional
     @Override
-    public boolean softDeleteUser() {
-        Long userId = getCurrentUserId();
+    public boolean softDeleteUser(Long userId) {
         UserPo user = userMapper.selectById(userId);
         if (user == null) {
             return false;
@@ -192,7 +186,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Result<String> registerUser(RegisterRequest request) {
+    public Result<String> register(RegisterRequest request) {
         // 构建用户对象
         UserPo user = ObjectConvertUtil.copyProperties(request, UserPo.class);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -336,8 +330,9 @@ public class UserServiceImpl implements UserService {
 
         // 激活账户
         user.setStatus(UserPo.UserStatus.NORMAL);
-        updateUser(user);
-
+        if(updateUser(user) <= 0) {
+            return Result.error("账户激活失败，请稍后再试");
+        }
         return Result.success("账户激活成功，欢迎使用我们的服务！");
     }
 
@@ -489,12 +484,7 @@ public class UserServiceImpl implements UserService {
         return Result.success(jwtUtil.generateToken(user, role,scopes, audience));
     }
     @Override
-    public Result<String> resetPassword(String token, String newPassword, String confirmPassword) {
-        // 验证密码确认
-        if (!newPassword.equals(confirmPassword)) {
-            return Result.error("两次输入的密码不一致");
-        }
-
+    public Result<String> resetPassword(String token, String newPassword) {
         // 验证密码强度（可根据需要添加）
         if (newPassword.length() < 6) {
             return Result.error("密码长度不能少于6位");
@@ -514,14 +504,16 @@ public class UserServiceImpl implements UserService {
 
         // 更新密码
         user.setPassword(passwordEncoder.encode(newPassword));
-        updateUser(user);
+        if (updateUser(user) <= 0) {
+            return Result.error("密码重置失败，请稍后再试");
+        }
 
         log.info("用户密码重置成功：{}", email);
         return Result.success("密码重置成功");
     }
 
     @Override
-    public Result<String> changePassword(String oldPassword, String hashedPassword, String confirmPassword) {
+    public Result<String> updatePassword(Long userId, String oldPassword, String hashedPassword, String confirmPassword) {
         // 验证密码确认
         if (!hashedPassword.equals(confirmPassword)) {
             return Result.error("两次输入的密码不一致");
@@ -532,13 +524,8 @@ public class UserServiceImpl implements UserService {
             return Result.error("密码长度不能少于6位");
         }
 
-        // 获取当前用户
-        Long currentUserId = getCurrentUserId();
-        if (currentUserId == null) {
-            return Result.error("用户未登录");
-        }
-
-        UserPo user = getUserById(currentUserId);
+        // 检查用户是否存在
+        UserPo user = getUserById(userId);
         if (user == null) {
             return Result.error("用户不存在");
         }
@@ -557,7 +544,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(hashedPassword));
         updateUser(user);
 
-        log.info("用户密码修改成功，用户ID：{}", currentUserId);
+        log.info("用户密码修改成功，用户ID：{}", userId);
         return Result.success("密码修改成功");
     }
 }

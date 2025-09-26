@@ -3,13 +3,6 @@ package top.contins.authservice.util;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
-import com.aliyun.oss.model.MatchMode;
-import com.aliyun.oss.model.PolicyConditions;
-import com.aliyuncs.DefaultAcsClient;
-import com.aliyuncs.auth.sts.AssumeRoleRequest;
-import com.aliyuncs.auth.sts.AssumeRoleResponse;
-import com.aliyuncs.exceptions.ClientException;
-import com.aliyuncs.profile.DefaultProfile;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -17,16 +10,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @Component
 public class AliOssUtil {
-    @Value("${CDNPoint}")
+    @Value("${aliyun.cdnPoint}")
     private String CDNPoint;
 
     @Value("${aliyun.oss.endpoint}")

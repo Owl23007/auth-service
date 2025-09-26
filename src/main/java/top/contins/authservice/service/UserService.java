@@ -6,8 +6,6 @@ import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.model.dto.UserLoginRequest;
 import top.contins.authservice.model.po.UserPo;
 
-import java.util.List;
-
 /**
  * 用户服务接口
  */
@@ -55,7 +53,14 @@ public interface UserService {
      *
      * @param user 用户信息
      */
-    void updateUser(UserPo user);
+    int updateUser(UserPo user);
+
+    /**
+     * 更新用户信息
+     *
+     * @param status 用户状态
+     */
+    int updateUserStatus(UserPo.UserStatus status, Long userId);
 
     /**
      * 删除用户
@@ -63,14 +68,15 @@ public interface UserService {
      * @param userId 用户ID
      * @return 是否删除成功
      */
-    boolean deleteUser(Long userId);
+    int deleteUser(Long userId);
 
     /**
      * 软删除用户
      *
+     * @param userId 用户ID
      * @return 是否删除成功
      */
-    boolean softDeleteUser();
+    boolean softDeleteUser(Long userId);
 
     /**
      * 用户注册
@@ -78,7 +84,7 @@ public interface UserService {
      * @param request 注册请求
      * @return 注册结果
      */
-    Result<String> registerUser(RegisterRequest request);
+    Result<String> register(RegisterRequest request);
 
     /**
      * 用户登录
@@ -101,20 +107,20 @@ public interface UserService {
      *
      * @param token           重置token
      * @param newPassword     新密码
-     * @param confirmPassword 确认密码
      * @return 重置结果
      */
-    Result<String> resetPassword(String token, String newPassword, String confirmPassword);
+    Result<String> resetPassword(String token, String newPassword);
 
     /**
-     * 修改密码（需要验证旧密码）
+     * 更新密码
      *
+     * @param userId          用户ID
      * @param oldPassword     旧密码
      * @param newPassword     新密码
      * @param confirmPassword 确认密码
      * @return 修改结果
      */
-    Result<String> changePassword(String oldPassword, String newPassword, String confirmPassword);
+    Result<String> updatePassword(Long userId, String oldPassword, String newPassword, String confirmPassword);
 
     /**
      * 发送密码重置邮件
@@ -140,10 +146,12 @@ public interface UserService {
      */
     Result<String> logout(String token);
 
-    /*
-     * 获取当前用户ID
+    /**
+     * 更新用户个人资料
      *
-     * @return 当前用户ID
+     * @param userId  用户ID
+     * @param request 更新请求
+     * @return 更新后的用户信息
      */
-    Long getCurrentUserId();
+    UserPo updateUserProfile(Long userId, Object request);
 }

@@ -42,7 +42,7 @@ public class RegistrationController {
 
     @PostMapping("/register")
     public Result<String> register(@RequestBody @Validated RegisterRequest request) {
-        return userService.registerUser(request);
+        return userService.register(request);
     }
 
     /**

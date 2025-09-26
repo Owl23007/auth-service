@@ -30,7 +30,7 @@ public class UserPo {
 
     private UserStatus status;
 
-    private role role;
+    private Role role;
 
     @JsonIgnore
     private LocalDateTime lastLoginTime;
@@ -46,13 +46,13 @@ public class UserPo {
     private LocalDateTime updateTime;
 
     @Getter
-    public enum role {
+    public enum Role {
       USER(0), ADMIN(1);
 
         @EnumValue
         private final int value;
 
-        role(int value) {
+        Role(int value) {
             this.value = value;
         }
     }

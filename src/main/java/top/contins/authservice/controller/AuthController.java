@@ -77,47 +77,31 @@ public class AuthController {
      * 通过access token继承refresh token的jti进行登出
      * 将jti加入Redis黑名单， 持续时间为token的剩余有效期
      *
-     * @param token 用户access token
+     * @param accessToken 访问令牌
+     * @param refreshToken 刷新令牌（可选）
      * @return 登出结果
      */
     @PostMapping("/logout")
     public Result<String> logout(
-            @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String accessToken,
             @RequestHeader(value = "Refresh-Token", required = false) String refreshToken) {
+        // 统一提取 token
+        String pureAccessToken = extractToken(accessToken);
+        String pureRefreshToken = refreshToken != null ? extractToken(refreshToken) : null;
 
-        // 优先使用 refresh token  进行登出
-        if (refreshToken != null) {
-            Result<String> result = userService.logout(refreshToken);
-            // 只要 refresh token 处理成功，直接返回（因为 jti 相同，access token 也会失效）
-            if (result.getCode() == 0) {
+        // 优先使用 refresh token
+        if (pureRefreshToken != null) {
+            Result<String> result = userService.logout(pureRefreshToken);
+            if (result.getCode() == 0){
                 return result;
             }
         }
-        // 处理 access token
-        return userService.logout(token);
+
+        return userService.logout(pureAccessToken);
     }
 
-    /**
-     * 验证token有效性
-     *
-     * @param token 待验证的token
-     * @return 验证结果
-     */
-    @PostMapping("/validate")
-    public Result<String> validateToken(@RequestParam("token") String token) {
-        if (token == null || token.trim().isEmpty()) {
-            return Result.error("Token不能为空");
-        }
-
-        // 如果token以"Bearer "开头，需要去掉前缀
-        if (token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }
-
-        if (jwtUtil.validateToken(token)) {
-            return Result.success("Token有效");
-        } else {
-            return Result.error("Token无效或已过期");
-        }
+    private String extractToken(String token) {
+        if (token == null) return null;
+        return token.trim().startsWith("Bearer ") ? token.substring(7).trim() : token.trim();
     }
 }

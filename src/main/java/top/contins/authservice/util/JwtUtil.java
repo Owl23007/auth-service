@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * - userId: 用户ID
  * - sub: 用户名
  * - email: 邮箱
- * - role: 角色（USER/ADMIN）
+ * - Role: 角色（USER/ADMIN）
  * - scope: 权限域（如 ["linx", "ugc"]）
  * - aud: 受众服务（如 ["linx:create", "ai-agent"]）
  * - jti: JWT唯一ID（用于黑名单）
@@ -218,7 +218,7 @@ public class JwtUtil {
     public String getRoleFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
-            return claims.get("role", String.class);
+            return claims.get("Role", String.class);
         } catch (Exception e) {
             log.error("从token获取角色失败", e);
             return null;
