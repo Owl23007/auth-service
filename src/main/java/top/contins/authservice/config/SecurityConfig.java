@@ -33,7 +33,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
                             response.setContentType("application/json");
-                            response.getWriter().write("{\"code\":401,\"message\":\"未授权，请登录\"}");
+                            response.getWriter().write("{\"code\":401,\"message\":\"Access Deny\"}");
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(403);
@@ -48,9 +48,7 @@ public class SecurityConfig {
                                 "/auth/login",
                                 "/auth/refresh",
                                 "/user/password/**",
-                                "/auth/validate",
-                                "/service-registry/**",
-                                "/user/all"
+                                "/.well-known/jwks.json"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -49,10 +49,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // 1. 从 JWT 中提取用户信息
                 Long userId = jwtUtil.getUserIdFromToken(token);
-                String username = jwtUtil.getUsernameFromToken(token);
 
                 // 2. 创建 Authentication 对象并存储在 SecurityContext 中
-                if (userId != null && username != null
+                if (userId != null
                         && SecurityContextHolder.getContext().getAuthentication() == null) {
 
                     // 创建 Authentication 对象, 将用户 ID 存储在认证对象中
@@ -69,7 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 将认证对象存储在 SecurityContext 中
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                    log.debug("JWT 认证成功：用户 {}, ID: {}", username, userId);
+                    log.debug("JWT 认证成功：用户 ID: {}", userId);
                 }
             } catch (Exception e) {
                 log.error("JWT 认证异常", e);

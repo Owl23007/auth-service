@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("user")
 public class UserPo {
-    @TableId(value = "user_id", type = IdType.AUTO)
+    @TableId(value = "user_id", type = IdType.ASSIGN_ID)
     private Long userId;
     private String username;
     private String nickname;
@@ -33,17 +33,8 @@ public class UserPo {
     private Role role;
 
     @JsonIgnore
-    private LocalDateTime lastLoginTime;
-    @JsonIgnore
-    private String lastLoginIp;
-    @JsonIgnore
-    private String lastLoginIpLocation;
-    @JsonIgnore
-    private String lastLoginDevice;
-
-    @JsonIgnore
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
 
     @Getter
     public enum Role {

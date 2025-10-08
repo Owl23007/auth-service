@@ -124,13 +124,13 @@ public class UserServiceImpl implements UserService {
                 case "username" -> queryWrapper.orderBy(isAsc, true, UserPo::getUsername);
                 case "email" -> queryWrapper.orderBy(isAsc, true, UserPo::getEmail);
                 case "status" -> queryWrapper.orderBy(isAsc, true, UserPo::getStatus);
-                case "created_at" -> queryWrapper.orderBy(isAsc, true, UserPo::getCreateTime);
-                case "updated_at" -> queryWrapper.orderBy(isAsc, true, UserPo::getUpdateTime);
-                default -> queryWrapper.orderByDesc(UserPo::getCreateTime); // 默认排序
+                case "created_at" -> queryWrapper.orderBy(isAsc, true, UserPo::getCreateAt);
+                case "updated_at" -> queryWrapper.orderBy(isAsc, true, UserPo::getUpdateAt);
+                default -> queryWrapper.orderByDesc(UserPo::getCreateAt); // 默认排序
             }
         } else {
             // 默认排序
-            queryWrapper.orderByDesc(UserPo::getCreateTime);
+            queryWrapper.orderByDesc(UserPo::getCreateAt);
         }
 
         // 4. 返回当前页数据
@@ -192,7 +192,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         boolean isValid = captchaService.verifyCaptcha(request.captchaId, request.captchaCode);
-        if (!isValid) {
+        if (isValid) {
             return Result.error("验证码验证失败");
         }
         // 检查用户名和邮箱是否已存在
@@ -445,16 +445,15 @@ public class UserServiceImpl implements UserService {
         }
 
         // 3. 获取用户信息
-        String username = jwtUtil.getUsernameFromToken(refreshToken);
         Long userId = jwtUtil.getUserIdFromToken(refreshToken);
 
         // 4. 验证Token信息
-        if (username == null || userId == null) {
+        if (userId == null) {
             return Result.error("Token信息无效");
         }
 
         // 5. 验证用户是否存在且状态正常
-        UserPo user = getUserByUsername(username);
+        UserPo user = getUserById(userId);
         if (user == null || user.getStatus() != UserPo.UserStatus.NORMAL) {
             return Result.error("用户状态异常，请重新登录");
         }

@@ -14,7 +14,7 @@ import top.contins.authservice.service.UserService;
  * 负责密码重置和密码修改相关功能
  */
 @RestController
-@RequestMapping("/user/password")
+@RequestMapping("/password")
 @Validated
 public class PasswordController {
 

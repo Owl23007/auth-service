@@ -20,13 +20,11 @@ import top.contins.authservice.util.JwtUtil;
 @Slf4j
 public class AuthController {
     private final UserService userService ;
-    private final JwtUtil jwtUtil ;
     private final CaptchaService captchaService ;
 
     @Autowired
-    public AuthController(UserService userService, JwtUtil jwtUtil, CaptchaService captchaService) {
+    public AuthController(UserService userService,CaptchaService captchaService) {
         this.userService = userService;
-        this.jwtUtil = jwtUtil;
         this.captchaService = captchaService;
     }
 

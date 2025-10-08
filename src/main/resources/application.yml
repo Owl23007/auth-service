@@ -35,7 +35,12 @@ jwt:
   expire:
     access-token: 3600000 # 1小时
     refresh-token: 604800000 # 7天
-  issuer: ${app.name}
+  issuer: ${spring.application.name}
+  key:
+    size: 2048
+    rotation:
+      enabled: true
+      interval-hours: 24
 
 
 redis:
