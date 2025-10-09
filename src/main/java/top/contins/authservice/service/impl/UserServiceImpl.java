@@ -424,7 +424,7 @@ public class UserServiceImpl implements UserService {
         // 从 UserPo 中获取真实的角色名称 (如 "USER" 或 "ADMIN")
         String role = user.getRole().name();
         // 定义受众服务列表，用户登录后默认可以访问认证服务和用户资料服务
-        List<String> audience = Arrays.asList("auth-service", "linx");
+        List<String> audience = Arrays.asList("auth", "linx","synapse","audit");
 
         List<String> scopes = List.of("linx");
 

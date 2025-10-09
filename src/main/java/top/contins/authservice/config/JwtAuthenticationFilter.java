@@ -43,8 +43,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (!isValidAccessToken(token)) {
                     log.warn("无效或过期的 Access Token");
-                    filterChain.doFilter(request, response);
-                    return;
+
+                    // 设置响应状态为 401 Unauthorized
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+
+                    // 可选：返回 JSON 错误信息
+                    String errorJson = "{\"code\": 401, \"message\": \"Invalid or expired access token\"}";
+                    response.getWriter().write(errorJson);
+
+                    return; // 终止 Filter 链
                 }
 
                 // 1. 从 JWT 中提取用户信息

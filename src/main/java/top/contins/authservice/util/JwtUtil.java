@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import top.contins.authservice.model.po.UserPo;
 import top.contins.authservice.model.vo.TokenResponse;
 
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -21,6 +22,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -278,7 +281,7 @@ public class JwtUtil {
      */
     private Map<String, Object> buildBaseClaims(Long userId, String role, List<String> scope, String jti) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", userId); // 业务友好：Long 类型
+        claims.put("userId", userId.toString()); // 业务友好：Long 类型
         claims.put("role", role);
         claims.put("scope", scope != null ? scope : Collections.emptyList());
         claims.put("jti", jti);
@@ -388,20 +391,11 @@ public class JwtUtil {
      * @throws IllegalArgumentException 如果 kid 无效或签名失败
      */
     private Claims getClaimsFromToken(String token) {
-        // 1. 解析 Header 获取 kid
-        Jwt<?, ?> unverifiedJwt;
-        try {
-            unverifiedJwt = Jwts.parser().build().parse(token);
-        } catch (JwtException e) {
-            throw new IllegalArgumentException("无法解析 JWT", e);
-        }
-
-        Header header = unverifiedJwt.getHeader();
-        Object kidObj = header.get("kid");
-        if (kidObj == null) {
+        // 1. 手动解析 Header 获取 kid
+        String kid = extractKidFromToken(token);
+        if (kid == null) {
             throw new IllegalArgumentException("Token 缺少 kid");
         }
-        String kid = kidObj.toString();
 
         // 2. 查找对应公钥
         JwtKeyPair keyPair = activeKeys.get(kid);
@@ -421,6 +415,43 @@ public class JwtUtil {
         }
     }
 
+    /**
+     * 手动从 JWT 中提取 kid（不依赖 JJWT 解析）
+     */
+    private String extractKidFromToken(String token) {
+        if (token == null || token.trim().isEmpty()) {
+            return null;
+        }
+        String[] parts = token.trim().split("\\.");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("JWT 格式非法：必须是三段式");
+        }
+
+        try {
+            String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
+
+            // 使用正则提取
+            Pattern pattern = Pattern.compile("\"kid\"\\s*:\\s*\"([^\"]*)\"");
+            Matcher matcher = pattern.matcher(headerJson);
+            if (!matcher.find()) {
+                return null;
+            }
+
+            String kid = matcher.group(1);
+
+            // 校验 kid 是否符合预期格式(只允许字母数字与下划线)
+            if (!kid.matches("^[a-zA-Z0-9_-]+$")) {
+                log.warn("非法 kid 格式: {}", kid);
+                return null; // 或抛异常
+            }
+
+            return kid;
+
+        } catch (Exception e) {
+            log.warn("解析 JWT Header 失败", e);
+            return null;
+        }
+    }
     // ===== Claims 提取方法 =====
 
     /**
