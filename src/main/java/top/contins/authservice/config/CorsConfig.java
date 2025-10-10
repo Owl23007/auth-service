@@ -6,6 +6,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import java.util.List;
+
 @Configuration
 public class CorsConfig {
     /**
@@ -13,15 +15,24 @@ public class CorsConfig {
      */
     @Bean
     public CorsFilter corsFilter() {
-        // 添加CORS配置信息
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
+
         config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:5173/");
-        config.addAllowedOrigin("*");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
-        config.setMaxAge(1800L); // 预检请求的缓存时间（秒）
+
+        // 允许的来源
+        config.addAllowedOrigin("http://localhost:5173");      // Vite 开发
+        config.addAllowedOrigin("http://127.0.0.1:5173");
+
+        // 明确列出 header，不要用 "*"
+        config.addAllowedHeader("Content-Type");
+        config.addAllowedHeader("Authorization");
+        config.addAllowedHeader("Refresh-Token");
+        config.addAllowedHeader("Origin");
+        config.addAllowedHeader("X-Requested-With");
+        // 明确列出方法
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setMaxAge(1800L);
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }

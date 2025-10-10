@@ -192,7 +192,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         boolean isValid = captchaService.verifyCaptcha(request.captchaId, request.captchaCode);
-        if (isValid) {
+        if (!isValid) {
             return Result.error("验证码验证失败");
         }
         // 检查用户名和邮箱是否已存在
