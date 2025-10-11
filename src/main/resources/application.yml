@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: auth
+  profiles:
+    active: dev,email,key-dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        username: nacos
+        password: ${nacos.password}
+
+
+server:
+  port: 8081
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/*.xml
+  type-aliases-package: top.contins.authservice.model.po
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+app:
+  name: ${app.webname}
+  official-website: ${private.app.website}
+  organization-name: ${app.organization_name}
+  contact:
+    email: ${app.email}
+    phone: ${app.phone}
+  working-hours: 9:00-18:00
+  # JWT配置
+
+jwt:
+  expire:
+    access-token: 3600000 # 1小时
+    refresh-token: 604800000 # 7天
+  issuer: ${spring.application.name}
+  key:
+    size: 2048
+    rotation:
+      enabled: true
+      interval-hours: 24
+
+
+redis:
+  expire-config:
+    - name: email-token
+      key: email-token:*
+      expire: 86400000 # 24小时
+    - name: jwt
+      key: jwt:*
+      expire: 86400000 # 24小时
+
+aliyun:
+  oss:
+    endpoint: oss-cn-shenzhen.aliyuncs.com
+    accessKeyId: ${aliyun.accessKeyId}
+    accessKeySecret: ${aliyun.accessKeySecret}
+    bucketName: ${aliyun.bucketName}
+    roleArn: ${aliyun.roleArn}
+  cdnPoint: ${CDNPoint}

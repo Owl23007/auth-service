@@ -1,0 +1,11 @@
+spring:
+  mail:
+    host: smtp.qq.com
+    port: 587
+
+    username: ${mail.username}
+    password: ${mail.password}
+
+    properties.mail.smtp:
+      auth: true
+      starttls.enable: true
