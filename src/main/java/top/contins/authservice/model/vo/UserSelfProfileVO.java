@@ -16,10 +16,6 @@ public class UserSelfProfileVO {
     private String backgroundImage;
     private String status;
     private String role;
-    private LocalDateTime lastLoginTime;
-    private String lastLoginIp;
-    private String lastLoginIpLocation;
-    private String lastLoginDevice;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

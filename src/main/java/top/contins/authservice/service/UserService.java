@@ -117,10 +117,10 @@ public interface UserService {
      * @param userId          用户ID
      * @param oldPassword     旧密码
      * @param newPassword     新密码
-     * @param confirmPassword 确认密码
+     *
      * @return 修改结果
      */
-    Result<String> updatePassword(Long userId, String oldPassword, String newPassword, String confirmPassword);
+    Result<String> updatePassword(Long userId, String oldPassword, String newPassword);
 
     /**
      * 发送密码重置邮件
@@ -147,11 +147,46 @@ public interface UserService {
     Result<String> logout(String token);
 
     /**
+     * 获取用户自己的完整个人资料
+     *
+     * @param userId 用户ID
+     * @return 用户完整个人资料
+     */
+    Result<?> getSelfProfile(Long userId);
+
+    /**
+     * 获取用户公开的个人资料
+     *
+     * @param userId 用户ID
+     * @return 用户公开个人资料
+     */
+    Result<?> getPublicProfile(Long userId);
+
+    /**
+     * 根据用户名获取用户公开资料
+     *
+     * @param username 用户名
+     * @return 用户公开资料
+     */
+    Result<?> getPublicProfileByUsername(String username);
+
+    /**
+     * 搜索用户
+     * 支持分页和关键字搜索
+     *
+     * @param keyword 搜索关键字（用户名或昵称）
+     * @param pageNum 页码
+     * @param pageSize 每页大小
+     * @return 用户公开资料列表
+     */
+    Result<?> searchUsers(String keyword, int pageNum, int pageSize);
+
+    /**
      * 更新用户个人资料
      *
      * @param userId  用户ID
      * @param request 更新请求
-     * @return 更新后的用户信息
+     * @return 更新结果
      */
-    UserPo updateUserProfile(Long userId, Object request);
+    Result<?> updateProfile(Long userId, Object request);
 }

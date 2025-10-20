@@ -3,6 +3,7 @@ package top.contins.authservice.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -13,8 +14,11 @@ import org.springframework.util.StringUtils;
 import top.contins.authservice.mapper.UserMapper;
 import top.contins.authservice.model.common.Result;
 import top.contins.authservice.model.dto.RegisterRequest;
+import top.contins.authservice.model.dto.UpdateProfileRequest;
 import top.contins.authservice.model.dto.UserLoginRequest;
 import top.contins.authservice.model.po.UserPo;
+import top.contins.authservice.model.vo.UserPublicProfileVO;
+import top.contins.authservice.model.vo.UserSelfProfileVO;
 import top.contins.authservice.service.CaptchaService;
 import top.contins.authservice.service.MailService;
 import top.contins.authservice.service.MailRedisTokenService;
@@ -28,6 +32,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.codec.digest.DigestUtils.sha256;
 
 /**
  * 用户服务实现类
@@ -58,6 +65,7 @@ public class UserServiceImpl implements UserService {
     @Value("${app.working-hours:9:00-18:00}")
     private String workingHours;
 
+    private static final String BLACKLIST_TOKEN_KEY_PREFIX = "auth:blacklist:token_jti:";
 
     private final StringRedisTemplate redisTemplate;
     private final UserMapper userMapper;
@@ -82,16 +90,6 @@ public class UserServiceImpl implements UserService {
         this.captchaService = captchaService;
         this.redisTemplate = redisTemplate;
     }
-
-    @Override
-    public UserPo updateUserProfile(Long userId, Object request) {
-        // 实现用户资料更新逻辑
-        UserPo user = getUserById(userId);
-        // 这里需要根据实际的 request 对象类型进行处理
-        // 暂时返回用户对象，实际实现需要根据业务需求完善
-        return user;
-    }
-
 
     @Override
     public Page<UserPo> getUserList(int pageSize, int pageNum, String status, String keyword, String sortBy, String sortOrder) {
@@ -359,7 +357,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (expiration > 0) {
-            String blacklistKey = "blacklist:token_jti:" + jti;
+            String blacklistKey = BLACKLIST_TOKEN_KEY_PREFIX + jti;
             redisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofMillis(expiration));
         }
         return Result.success("登出成功");
@@ -465,7 +463,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // 7. 检查是否已被使用（防重放）
-        String usedKey = "refresh_token:used:" + jti;
+        String usedKey = BLACKLIST_TOKEN_KEY_PREFIX + jti;
         Boolean isUsed = redisTemplate.hasKey(usedKey);
         if (isUsed) {
             return Result.error("Refresh token 已失效");
@@ -512,38 +510,213 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Result<String> updatePassword(Long userId, String oldPassword, String hashedPassword, String confirmPassword) {
-        // 验证密码确认
-        if (!hashedPassword.equals(confirmPassword)) {
-            return Result.error("两次输入的密码不一致");
-        }
-
-        // 验证密码强度
-        if (hashedPassword.length() < 6) {
-            return Result.error("密码长度不能少于6位");
-        }
-
-        // 检查用户是否存在
-        UserPo user = getUserById(userId);
-        if (user == null) {
-            return Result.error("用户不存在");
-        }
-
+    public Result<String> updatePassword(Long userId, String oldPassword, String newPassword) {
         // 验证旧密码
+        UserPo user = getUserById(userId);
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             return Result.error("旧密码错误");
         }
 
-        // 检查新密码是否与旧密码相同
-        if (passwordEncoder.matches(hashedPassword, user.getPassword())) {
-            return Result.error("新密码不能与旧密码相同");
+        user.setPassword(passwordEncoder.encode(newPassword));
+        if (updateUser(user) <= 0) {
+            return Result.error("密码更新失败，请稍后再试");
         }
+        log.info("用户密码更新成功：{}", userId);
+        return Result.success("密码更新成功");
+    }
 
-        // 更新密码
-        user.setPassword(passwordEncoder.encode(hashedPassword));
-        updateUser(user);
+    @Override
+    public Result<?> getSelfProfile(Long userId) {
+        try {
+            UserPo user = getUserById(userId);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
 
-        log.info("用户密码修改成功，用户ID：{}", userId);
-        return Result.success("密码修改成功");
+            // 转换为自己的完整资料VO
+            UserSelfProfileVO profileVO = new UserSelfProfileVO();
+
+            profileVO.setUserId(user.getUserId());
+            profileVO.setUsername(user.getUsername());
+            profileVO.setNickname(user.getNickname());
+            profileVO.setEmail(user.getEmail());
+            profileVO.setPhone(user.getPhone());
+            profileVO.setSignature(user.getSignature());
+            profileVO.setAvatarImage(user.getAvatarImage());
+            profileVO.setBackgroundImage(user.getBackgroundImage());
+            profileVO.setStatus(user.getStatus().name());
+            profileVO.setRole(user.getRole().name());
+            profileVO.setUpdateTime(user.getUpdateAt());
+
+
+            return Result.success(profileVO);
+        } catch (Exception e) {
+            log.error("获取用户个人资料失败,用户ID:{}", userId, e);
+            return Result.error("获取个人资料失败");
+        }
+    }
+
+    @Override
+    public Result<?> getPublicProfile(Long userId) {
+        try {
+            UserPo user = getUserById(userId);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+
+            // 检查用户状态
+            if (user.getStatus() != UserPo.UserStatus.NORMAL) {
+                return Result.error("用户状态异常");
+            }
+
+            // 转换为公开资料VO
+            UserPublicProfileVO profileVO = new UserPublicProfileVO();
+            profileVO.setUserId(user.getUserId());
+            profileVO.setUsername(user.getUsername());
+            profileVO.setNickname(user.getNickname());
+            profileVO.setSignature(user.getSignature());
+            profileVO.setAvatarImage(user.getAvatarImage());
+            profileVO.setBackgroundImage(user.getBackgroundImage());
+
+            return Result.success(profileVO);
+        } catch (Exception e) {
+            log.error("获取用户公开资料失败,用户ID:{}", userId, e);
+            return Result.error("获取用户资料失败");
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<?> updateProfile(Long userId, Object request) {
+        try {
+            UserPo user = getUserById(userId);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+
+            // 检查用户状态
+            if (user.getStatus() != UserPo.UserStatus.NORMAL) {
+                return Result.error("用户状态异常,无法更新资料");
+            }
+
+            // 转换请求对象
+            UpdateProfileRequest updateRequest;
+            if (request instanceof UpdateProfileRequest) {
+                updateRequest = (UpdateProfileRequest) request;
+            } else {
+                return Result.error("无效的请求参数");
+            }
+
+            // 更新用户信息
+            boolean updated = false;
+            if (updateRequest.getNickname() != null) {
+                user.setNickname(updateRequest.getNickname());
+                updated = true;
+            }
+            if (updateRequest.getSignature() != null) {
+                user.setSignature(updateRequest.getSignature());
+                updated = true;
+            }
+            if (updateRequest.getAvatarImage() != null) {
+                user.setAvatarImage(updateRequest.getAvatarImage());
+                updated = true;
+            }
+            if (updateRequest.getBackgroundImage() != null) {
+                user.setBackgroundImage(updateRequest.getBackgroundImage());
+                updated = true;
+            }
+            if (updateRequest.getPhone() != null) {
+                user.setPhone(updateRequest.getPhone());
+                updated = true;
+            }
+
+            if (!updated) {
+                return Result.error("没有需要更新的内容");
+            }
+
+            // 执行更新
+            int result = updateUser(user);
+            if (result > 0) {
+                log.info("用户资料更新成功,用户ID:{}", userId);
+                // 返回更新后的完整资料
+                return getSelfProfile(userId);
+            } else {
+                return Result.error("更新失败");
+            }
+        } catch (Exception e) {
+            log.error("更新用户资料失败,用户ID:{}", userId, e);
+            return Result.error("更新资料失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<?> getPublicProfileByUsername(String username) {
+        try {
+            if (username == null || username.trim().isEmpty()) {
+                return Result.error("用户名不能为空");
+            }
+
+            UserPo user = getUserByUsername(username);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+
+            // 检查用户状态
+            if (user.getStatus() != UserPo.UserStatus.NORMAL) {
+                return Result.error("用户状态异常");
+            }
+
+            // 转换为公开资料VO
+            UserPublicProfileVO profileVO = new UserPublicProfileVO();
+            profileVO.setUserId(user.getUserId());
+            profileVO.setUsername(user.getUsername());
+            profileVO.setNickname(user.getNickname());
+            profileVO.setSignature(user.getSignature());
+            profileVO.setAvatarImage(user.getAvatarImage());
+            profileVO.setBackgroundImage(user.getBackgroundImage());
+
+            return Result.success(profileVO);
+        } catch (Exception e) {
+            log.error("根据用户名获取用户公开资料失败,用户名:{}", username, e);
+            return Result.error("获取用户资料失败");
+        }
+    }
+
+    @Override
+    public Result<?> searchUsers(String keyword, int pageNum, int pageSize) {
+        try {
+            // 参数校验
+            if (pageNum < 1) {
+                pageNum = 1;
+            }
+            if (pageSize < 1 || pageSize > 100) {
+                pageSize = 10;
+            }
+
+            // 调用已有的getUserList方法,只返回NORMAL状态的用户
+            Page<UserPo> userPage = getUserList(pageSize, pageNum, "NORMAL", keyword, "username", "asc");
+
+            // 转换为公开资料VO列表
+            Page<UserPublicProfileVO> resultPage = new Page<>(pageNum, pageSize, userPage.getTotal());
+            List<UserPublicProfileVO> profileList = userPage.getRecords().stream()
+                    .map(user -> {
+                        UserPublicProfileVO profileVO = new UserPublicProfileVO();
+                        profileVO.setUserId(user.getUserId());
+                        profileVO.setUsername(user.getUsername());
+                        profileVO.setNickname(user.getNickname());
+                        profileVO.setSignature(user.getSignature());
+                        profileVO.setAvatarImage(user.getAvatarImage());
+                        profileVO.setBackgroundImage(user.getBackgroundImage());
+                        return profileVO;
+                    })
+                    .collect(Collectors.toList());
+            
+            resultPage.setRecords(profileList);
+
+            return Result.success(resultPage);
+        } catch (Exception e) {
+            log.error("搜索用户失败,关键字:{}", keyword, e);
+            return Result.error("搜索用户失败");
+        }
     }
 }

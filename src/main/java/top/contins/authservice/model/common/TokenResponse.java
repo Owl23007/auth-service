@@ -1,4 +1,4 @@
-package top.contins.authservice.model.vo;
+package top.contins.authservice.model.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

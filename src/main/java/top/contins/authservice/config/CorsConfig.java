@@ -21,8 +21,8 @@ public class CorsConfig {
         config.setAllowCredentials(true);
 
         // 允许的来源
-        config.addAllowedOrigin("http://localhost:5173");      // Vite 开发
-        config.addAllowedOrigin("http://127.0.0.1:5173");
+        config.addAllowedOrigin("http://localhost:5173");
+        config.addAllowedOrigin("http://localhost:5174");
 
         // 明确列出 header，不要用 "*"
         config.addAllowedHeader("Content-Type");

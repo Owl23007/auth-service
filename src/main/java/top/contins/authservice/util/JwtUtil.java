@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import top.contins.authservice.model.po.UserPo;
-import top.contins.authservice.model.vo.TokenResponse;
+import top.contins.authservice.model.common.TokenResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
