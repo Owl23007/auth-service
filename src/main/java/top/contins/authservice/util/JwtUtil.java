@@ -508,8 +508,8 @@ public class JwtUtil {
         try {
             Claims claims = getClaimsFromToken(token);
             Object scope = claims.get("scope");
-            if (scope instanceof List) {
-                return ((List<?>) scope).stream()
+            if (scope instanceof Collection) {
+                return ((Collection<?>) scope).stream()
                         .map(Object::toString)
                         .collect(Collectors.toList());
             } else if (scope instanceof String s) {
@@ -531,9 +531,14 @@ public class JwtUtil {
     public List<String> getAudienceFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
+            Set<String> audience = claims.getAudience();
+            if (audience != null) {
+                return new ArrayList<>(audience);
+            }
+
             Object aud = claims.get("aud");
-            if (aud instanceof List) {
-                return ((List<?>) aud).stream()
+            if (aud instanceof Collection) {
+                return ((Collection<?>) aud).stream()
                         .map(Object::toString)
                         .collect(Collectors.toList());
             } else if (aud instanceof String s) {
