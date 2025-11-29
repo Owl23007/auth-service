@@ -2,6 +2,8 @@ package top.contins.authservice.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import top.contins.authservice.model.common.Result;
@@ -57,6 +59,27 @@ public class AuthController {
         }
 
         return userService.refreshToken(refreshToken);
+    }
+
+    /**
+     * 获取当前用户信息
+     *
+     * @return 用户信息
+     */
+    @GetMapping("/userinfo")
+    public Result<?> getUserInfo() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return Result.error("未认证");
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Long) {
+            Long userId = (Long) principal;
+            return Result.success(userService.getUserById(userId));
+        }
+
+        return Result.error("无法获取用户信息");
     }
 
     /**

@@ -17,8 +17,13 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class MailRedisTokenServiceImpl implements MailRedisTokenService {
 
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    public MailRedisTokenServiceImpl(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
 
     // Redis key前缀
     private static final String TOKEN_PREFIX = "email_token:";

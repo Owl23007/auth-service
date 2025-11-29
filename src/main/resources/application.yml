@@ -20,6 +20,9 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      dialect: postgresql
 
 app:
   name: ${app.webname}

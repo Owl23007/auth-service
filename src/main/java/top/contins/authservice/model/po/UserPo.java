@@ -11,7 +11,7 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("user")
+@TableName("users")
 public class UserPo {
     @TableId(value = "user_id", type = IdType.ASSIGN_ID)
     private Long userId;
