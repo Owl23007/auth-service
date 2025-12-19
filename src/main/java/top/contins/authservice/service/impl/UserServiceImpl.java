@@ -44,10 +44,10 @@ import static org.apache.commons.codec.digest.DigestUtils.sha256;
 public class UserServiceImpl implements UserService {
 
 
-    @Value("${app.name}")
+    @Value("${app.name:auth}")
     private String appName;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:}")
     private String mailUsername;
 
     @Value("${server.port:8080}")

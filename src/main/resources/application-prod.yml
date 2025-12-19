@@ -1,6 +1,0 @@
-spring:
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${DB_URL}/auth_service
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}

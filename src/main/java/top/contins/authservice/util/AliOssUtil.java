@@ -15,29 +15,37 @@ import java.util.Date;
 @Slf4j
 @Component
 public class AliOssUtil {
-    @Value("${aliyun.cdnPoint}")
+    @Value("${aliyun.cdnPoint:}")
     private String CDNPoint;
 
-    @Value("${aliyun.oss.endpoint}")
+    @Value("${aliyun.oss.endpoint:}")
     private String endPoint;
 
-    @Value("${aliyun.oss.bucketName}")
+    @Value("${aliyun.oss.bucketName:}")
     private String bucketName;
 
-    @Value("${aliyun.oss.accessKeyId}")
+    @Value("${aliyun.oss.accessKeyId:}")
     private String accessKeyId;
 
-    @Value("${aliyun.oss.accessKeySecret}")
+    @Value("${aliyun.oss.accessKeySecret:}")
     private String accessKeySecret;
 
-    @Value("${aliyun.oss.roleArn}")
+    @Value("${aliyun.oss.roleArn:}")
     private String roleArn;
 
     private OSS ossClient;
 
     @PostConstruct
     public void init() {
-        ossClient = new OSSClientBuilder().build(endPoint, accessKeyId, accessKeySecret);
+        if (endPoint != null && !endPoint.isEmpty() && accessKeyId != null && !accessKeyId.isEmpty() && accessKeySecret != null && !accessKeySecret.isEmpty()) {
+            try {
+                ossClient = new OSSClientBuilder().build(endPoint, accessKeyId, accessKeySecret);
+            } catch (Exception e) {
+                log.warn("Failed to initialize OSS client: {}", e.getMessage());
+            }
+        } else {
+            log.warn("Aliyun OSS configuration is missing. OSS functionality will be disabled.");
+        }
     }
 
     @PreDestroy

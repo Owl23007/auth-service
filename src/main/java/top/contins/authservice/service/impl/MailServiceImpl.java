@@ -26,7 +26,7 @@ public class MailServiceImpl implements MailService {
     @Autowired
     private MailTemplateConfig mailTemplateConfig;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:}")
     private String from;
 
     @Override

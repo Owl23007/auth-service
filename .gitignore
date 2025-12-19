@@ -32,4 +32,9 @@ build/
 
 ### VS Code ###
 .vscode/
-src/main/resources/private-key.properties
+
+# Local secrets (do not commit)
+.env
+
+# SQL scripts may contain credentials (keep local only)
+src/main/resources/dbsql/users.sql

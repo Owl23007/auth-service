@@ -30,7 +30,7 @@ public class RegistrationController {
         this.mailService = mailService;
     }
 
-    @Value("${app.official-website}")
+    @Value("${app.official-website:http://localhost}")
     private String officialWebsite;
 
     /**

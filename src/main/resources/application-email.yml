@@ -1,11 +1,15 @@
-spring:
+﻿spring:
   mail:
-    host: smtp.qq.com
-    port: 587
-
-    username: ${mail.username}
-    password: ${mail.password}
-
-    properties.mail.smtp:
-      auth: true
-      starttls.enable: true
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+        debug: false
+        transport:
+          protocol: smtp

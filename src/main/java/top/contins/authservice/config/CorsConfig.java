@@ -1,5 +1,6 @@
 package top.contins.authservice.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -10,6 +11,9 @@ import java.util.List;
 
 @Configuration
 public class CorsConfig {
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
     /**
      * 跨域配置
      */
@@ -21,8 +25,7 @@ public class CorsConfig {
         config.setAllowCredentials(true);
 
         // 允许的来源
-        config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("http://localhost:5174");
+        config.setAllowedOrigins(allowedOrigins);
 
         // 明确列出 header，不要用 "*"
         config.addAllowedHeader("Content-Type");
