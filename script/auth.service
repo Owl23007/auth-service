@@ -1,0 +1,22 @@
+[Unit]
+Description=Auth Service (managed by run.sh)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=forking
+User=root
+Group=root
+WorkingDirectory=/root/apps/auth
+ExecStart=/bin/bash /root/apps/auth/run.sh start
+ExecStop=/bin/bash /root/apps/auth/run.sh stop
+PIDFile=/root/apps/auth/app.pid
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+
+NoNewPrivileges=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target
