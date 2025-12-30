@@ -31,6 +31,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
+                            //
                             response.setStatus(401);
                             response.setContentType("application/json");
                             response.getWriter().write("{\"code\":401,\"message\":\"Access Deny\"}");

@@ -50,9 +50,6 @@ public class UserServiceImpl implements UserService {
     @Value("${spring.mail.username:}")
     private String mailUsername;
 
-    @Value("${server.port:8080}")
-    private String serverPort;
-
     @Value("${app.official-website:http://localhost}")
     private String baseUrl;
 
@@ -251,7 +248,7 @@ public class UserServiceImpl implements UserService {
      */
     private void sendActivationEmail(UserPo user) {
         // 构建激活链接
-        String activationUrl = mailContentUtil.generateActivationUrl(user.getEmail(), baseUrl + ":" + serverPort);
+        String activationUrl = mailContentUtil.generateActivationUrl(user.getEmail(), baseUrl+"/api");
 
         // 准备邮件模板参数
         Map<String, Object> placeholders = new HashMap<>();
@@ -370,7 +367,7 @@ public class UserServiceImpl implements UserService {
      */
     private void sendResetPasswordEmail(UserPo user) {
         // 构建密码重置链接
-        String resetPasswordUrl = mailContentUtil.generateResetPasswordUrl(user.getEmail(), baseUrl + ":" + serverPort);
+        String resetPasswordUrl = mailContentUtil.generateResetPasswordUrl(user.getEmail(), baseUrl+"/api" );
 
         // 准备邮件模板参数
         Map<String, Object> placeholders = new HashMap<>();
@@ -392,7 +389,7 @@ public class UserServiceImpl implements UserService {
         String password = request.getPassword();
 
         // 根据用户名或邮箱查找用户
-        UserPo user = null;
+        UserPo user;
         if (account.contains("@")) {
             user = getUserByEmail(account);
         } else {

@@ -13,7 +13,7 @@
     driver-class-name: org.postgresql.Driver
     url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
     username: ${DATASOURCE_USERNAME:postgres}
-    password: ${DATASOURCE_PASSWORD:postgres}
+    password: "${DATASOURCE_PASSWORD:postgres}"
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -48,7 +48,7 @@ app:
     phone: ${APP_PHONE:}
   working-hours: 9:00-18:00
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 jwt:
   expire:
