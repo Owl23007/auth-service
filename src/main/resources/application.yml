@@ -13,7 +13,7 @@
     driver-class-name: org.postgresql.Driver
     url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
     username: ${DATASOURCE_USERNAME:postgres}
-    password: ${DATASOURCE_PASSWORD:postgres}
+    password: "${DATASOURCE_PASSWORD:postgres}"
   data:
     redis:
       host: ${REDIS_HOST:localhost}

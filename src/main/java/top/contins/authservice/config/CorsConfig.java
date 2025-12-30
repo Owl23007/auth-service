@@ -12,7 +12,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
     @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private String allowedOrigins;
 
     /**
      * 跨域配置
@@ -25,9 +25,8 @@ public class CorsConfig {
         config.setAllowCredentials(true);
 
         // 允许的来源
-        config.setAllowedOrigins(allowedOrigins);
+        config.addAllowedOrigin(allowedOrigins);
 
-        // 明确列出 header，不要用 "*"
         config.addAllowedHeader("Content-Type");
         config.addAllowedHeader("Authorization");
         config.addAllowedHeader("Refresh-Token");

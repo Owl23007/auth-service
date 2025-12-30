@@ -89,6 +89,7 @@ public class AuthController {
      */
     @GetMapping("/captcha")
     public Result<String> getCaptcha() {
+        log.info("test");
         String captcha = captchaService.generateCaptcha();  // 返回 id: base64
         return Result.success(captcha);
     }
