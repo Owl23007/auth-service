@@ -13,25 +13,32 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import top.contins.authservice.mapper.UserMapper;
 import top.contins.authservice.model.common.Result;
+import top.contins.authservice.model.dto.CreateProfileImageUploadRequest;
 import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.model.dto.UpdateProfileRequest;
 import top.contins.authservice.model.dto.UserLoginRequest;
 import top.contins.authservice.model.po.UserPo;
+import top.contins.authservice.model.vo.ProfileImageUploadUrlVO;
 import top.contins.authservice.model.vo.UserPublicProfileVO;
 import top.contins.authservice.model.vo.UserSelfProfileVO;
 import top.contins.authservice.service.CaptchaService;
 import top.contins.authservice.service.MailService;
 import top.contins.authservice.service.MailRedisTokenService;
 import top.contins.authservice.service.UserService;
+import top.contins.authservice.util.AliOssUtil;
+import top.contins.authservice.util.Base62Util;
 import top.contins.authservice.util.JwtUtil;
 import top.contins.authservice.util.MailContentUtil;
 import top.contins.authservice.util.ObjectConvertUtil;
 
+import java.time.LocalDate;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.commons.codec.digest.DigestUtils.sha256;
@@ -42,6 +49,13 @@ import static org.apache.commons.codec.digest.DigestUtils.sha256;
 @Service
 @Slf4j
 public class UserServiceImpl implements UserService {
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif"
+    );
+    private static final int DEFAULT_UPLOAD_EXPIRE_SECONDS = 300;
 
 
     @Value("${app.name:auth}")
@@ -62,6 +76,15 @@ public class UserServiceImpl implements UserService {
     @Value("${app.working-hours:9:00-18:00}")
     private String workingHours;
 
+    @Value("${app.upload.presigned-url-expire-seconds:300}")
+    private int presignedUrlExpireSeconds;
+
+    @Value("${app.upload.avatar-max-size-bytes:2097152}")
+    private long avatarMaxSizeBytes;
+
+    @Value("${app.upload.background-max-size-bytes:5242880}")
+    private long backgroundMaxSizeBytes;
+
     private static final String BLACKLIST_TOKEN_KEY_PREFIX = "auth:blacklist:token_jti:";
 
     private final StringRedisTemplate redisTemplate;
@@ -72,12 +95,13 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final CaptchaService captchaService;
+    private final AliOssUtil aliOssUtil;
 
     @Autowired
     public UserServiceImpl(UserMapper userMapper, MailService mailService,
                            MailContentUtil mailContentUtil, MailRedisTokenService mailRedisTokenService,
                            PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CaptchaService captchaService,
-                           StringRedisTemplate redisTemplate) {
+                           StringRedisTemplate redisTemplate, AliOssUtil aliOssUtil) {
         this.userMapper = userMapper;
         this.mailService = mailService;
         this.mailContentUtil = mailContentUtil;
@@ -86,6 +110,7 @@ public class UserServiceImpl implements UserService {
         this.jwtUtil = jwtUtil;
         this.captchaService = captchaService;
         this.redisTemplate = redisTemplate;
+        this.aliOssUtil = aliOssUtil;
     }
 
     @Override
@@ -714,6 +739,172 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             log.error("搜索用户失败,关键字:{}", keyword, e);
             return Result.error("搜索用户失败");
+        }
+    }
+
+    @Override
+    public Result<?> createAvatarUploadUrl(Long userId, CreateProfileImageUploadRequest request) {
+        return createProfileImageUploadUrl(userId, request, ProfileImageType.AVATAR);
+    }
+
+    @Override
+    public Result<?> confirmAvatarUpload(Long userId, String objectName) {
+        return confirmProfileImageUpload(userId, objectName, ProfileImageType.AVATAR);
+    }
+
+    @Override
+    public Result<?> createBackgroundUploadUrl(Long userId, CreateProfileImageUploadRequest request) {
+        return createProfileImageUploadUrl(userId, request, ProfileImageType.BACKGROUND);
+    }
+
+    @Override
+    public Result<?> confirmBackgroundUpload(Long userId, String objectName) {
+        return confirmProfileImageUpload(userId, objectName, ProfileImageType.BACKGROUND);
+    }
+
+    private Result<?> createProfileImageUploadUrl(Long userId, CreateProfileImageUploadRequest request, ProfileImageType imageType) {
+        try {
+            UserPo user = validateUploadUser(userId);
+            if (user == null) {
+                return Result.error("用户不存在或状态异常");
+            }
+            if (!aliOssUtil.isAvailable()) {
+                return Result.error("OSS 未配置，无法生成上传直链");
+            }
+
+            String contentType = request.getContentType().trim().toLowerCase();
+            if (!ALLOWED_IMAGE_TYPES.contains(contentType)) {
+                return Result.error("仅支持 JPG、PNG、WEBP、GIF 图片");
+            }
+
+            long maxSizeBytes = getMaxSizeBytes(imageType);
+            if (request.getFileSize() > maxSizeBytes) {
+                return Result.error(imageType.displayName + "大小不能超过 " + formatFileSize(maxSizeBytes));
+            }
+
+            String objectName = buildObjectName(userId, imageType, request.getFilename(), contentType);
+            int expireSeconds = presignedUrlExpireSeconds > 0 ? presignedUrlExpireSeconds : DEFAULT_UPLOAD_EXPIRE_SECONDS;
+
+            ProfileImageUploadUrlVO uploadVO = new ProfileImageUploadUrlVO();
+            uploadVO.setObjectName(objectName);
+            uploadVO.setUploadUrl(aliOssUtil.generatePresignedUrl(objectName, expireSeconds, "PUT", contentType));
+            uploadVO.setPublicUrl(aliOssUtil.getObjectUrl(objectName));
+            uploadVO.setMethod("PUT");
+            uploadVO.setContentType(contentType);
+            uploadVO.setExpireInSeconds(expireSeconds);
+            uploadVO.setExpireAt(System.currentTimeMillis() + expireSeconds * 1000L);
+            uploadVO.setHeaders(Map.of("Content-Type", contentType));
+
+            return Result.success(uploadVO);
+        } catch (Exception e) {
+            log.error("生成{}上传直链失败, 用户ID:{}", imageType.displayName, userId, e);
+            return Result.error("生成上传直链失败");
+        }
+    }
+
+    @Transactional
+    protected Result<?> confirmProfileImageUpload(Long userId, String objectName, ProfileImageType imageType) {
+        try {
+            UserPo user = validateUploadUser(userId);
+            if (user == null) {
+                return Result.error("用户不存在或状态异常");
+            }
+            if (!StringUtils.hasText(objectName)) {
+                return Result.error("对象名不能为空");
+            }
+            if (!aliOssUtil.isAvailable()) {
+                return Result.error("OSS 未配置，无法确认上传结果");
+            }
+
+            String normalizedObjectName = objectName.replaceFirst("^/+", "");
+            String expectedPrefix = buildObjectPrefix(userId, imageType);
+            if (!normalizedObjectName.startsWith(expectedPrefix)) {
+                return Result.error("上传对象不合法");
+            }
+            if (!aliOssUtil.doesObjectExist(normalizedObjectName)) {
+                return Result.error("上传对象不存在或尚未上传完成");
+            }
+
+            String publicUrl = aliOssUtil.getObjectUrl(normalizedObjectName);
+            if (imageType == ProfileImageType.AVATAR) {
+                user.setAvatarImage(publicUrl);
+            } else {
+                user.setBackgroundImage(publicUrl);
+            }
+
+            if (updateUser(user) <= 0) {
+                return Result.error("保存" + imageType.displayName + "失败");
+            }
+
+            return getSelfProfile(userId);
+        } catch (Exception e) {
+            log.error("确认{}上传失败, 用户ID:{}", imageType.displayName, userId, e);
+            return Result.error("确认上传失败");
+        }
+    }
+
+    private UserPo validateUploadUser(Long userId) {
+        UserPo user = getUserById(userId);
+        if (user == null || user.getStatus() != UserPo.UserStatus.NORMAL) {
+            return null;
+        }
+        return user;
+    }
+
+    private long getMaxSizeBytes(ProfileImageType imageType) {
+        return imageType == ProfileImageType.AVATAR ? avatarMaxSizeBytes : backgroundMaxSizeBytes;
+    }
+
+    private String buildObjectName(Long userId, ProfileImageType imageType, String filename, String contentType) {
+        return buildObjectPrefix(userId, imageType)
+                + LocalDate.now()
+                + "/"
+                + UUID.randomUUID().toString().replace("-", "")
+                + "."
+                + resolveExtension(filename, contentType);
+    }
+
+    private String buildObjectPrefix(Long userId, ProfileImageType imageType) {
+        return "profile/" + Base62Util.encode(userId) + "/" + imageType.directory + "/";
+    }
+
+    private String resolveExtension(String filename, String contentType) {
+        if (StringUtils.hasText(filename) && filename.contains(".")) {
+            String extension = filename.substring(filename.lastIndexOf('.') + 1).trim().toLowerCase();
+            if (!extension.isEmpty()) {
+                return extension;
+            }
+        }
+
+        return switch (contentType) {
+            case "image/jpeg" -> "jpg";
+            case "image/png" -> "png";
+            case "image/webp" -> "webp";
+            case "image/gif" -> "gif";
+            default -> "bin";
+        };
+    }
+
+    private String formatFileSize(long bytes) {
+        if (bytes >= 1024 * 1024) {
+            return (bytes / (1024 * 1024)) + "MB";
+        }
+        if (bytes >= 1024) {
+            return (bytes / 1024) + "KB";
+        }
+        return bytes + "B";
+    }
+
+    private enum ProfileImageType {
+        AVATAR("avatar", "头像"),
+        BACKGROUND("background", "背景图");
+
+        private final String directory;
+        private final String displayName;
+
+        ProfileImageType(String directory, String displayName) {
+            this.directory = directory;
+            this.displayName = displayName;
         }
     }
 }

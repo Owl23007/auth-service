@@ -8,6 +8,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.net.URL;
 import java.util.Date;
@@ -37,7 +38,7 @@ public class AliOssUtil {
 
     @PostConstruct
     public void init() {
-        if (endPoint != null && !endPoint.isEmpty() && accessKeyId != null && !accessKeyId.isEmpty() && accessKeySecret != null && !accessKeySecret.isEmpty()) {
+        if (StringUtils.hasText(endPoint) && StringUtils.hasText(accessKeyId) && StringUtils.hasText(accessKeySecret)) {
             try {
                 ossClient = new OSSClientBuilder().build(endPoint, accessKeyId, accessKeySecret);
             } catch (Exception e) {
@@ -52,32 +53,65 @@ public class AliOssUtil {
     public void destroy() {
         if (ossClient != null) {
             ossClient.shutdown();
-            log.info("OSS 客户端已关闭");
+            log.info("OSS client closed");
         }
+    }
+
+    public boolean isAvailable() {
+        return ossClient != null && StringUtils.hasText(bucketName);
     }
 
     public String getCDNUrl(String objectName) {
-        return CDNPoint + "/" + objectName;
+        return CDNPoint + "/" + normalizeObjectName(objectName);
     }
 
-    /**
-     * 生成签名URL（用于上传或下载文件）
-     *
-     * @param objectName 文件在OSS中的路径（例如：exampleDir/exampleObject.png）
-     * @param expireTime URL的有效时间（单位：秒）
-     * @param method     HTTP方法（"PUT"表示上传，"GET"表示下载）
-     * @return 签名URL
-     */
+    public String getObjectUrl(String objectName) {
+        validateAvailable();
+
+        String normalizedObjectName = normalizeObjectName(objectName);
+        if (StringUtils.hasText(CDNPoint)) {
+            return CDNPoint.replaceAll("/+$", "") + "/" + normalizedObjectName;
+        }
+
+        String normalizedEndpoint = endPoint.replaceFirst("^https?://", "");
+        return "https://" + bucketName + "." + normalizedEndpoint + "/" + normalizedObjectName;
+    }
+
+    public boolean doesObjectExist(String objectName) {
+        validateAvailable();
+        return ossClient.doesObjectExist(bucketName, normalizeObjectName(objectName));
+    }
+
     public String generatePresignedUrl(String objectName, int expireTime, String method) {
+        return generatePresignedUrl(objectName, expireTime, method, null);
+    }
+
+    public String generatePresignedUrl(String objectName, int expireTime, String method, String contentType) {
         try {
-            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucketName, objectName);
+            validateAvailable();
+            GeneratePresignedUrlRequest request =
+                    new GeneratePresignedUrlRequest(bucketName, normalizeObjectName(objectName));
             request.setMethod(com.aliyun.oss.HttpMethod.valueOf(method));
             request.setExpiration(new Date(System.currentTimeMillis() + expireTime * 1000L));
+            if (StringUtils.hasText(contentType)) {
+                request.setContentType(contentType);
+            }
+
             URL url = ossClient.generatePresignedUrl(request);
             return url.toString();
         } catch (Exception e) {
-            log.error("生成签名URL失败", e);
+            log.error("Failed to generate presigned URL", e);
             throw new RuntimeException("生成签名URL失败", e);
         }
+    }
+
+    private void validateAvailable() {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Aliyun OSS 未正确配置");
+        }
+    }
+
+    private String normalizeObjectName(String objectName) {
+        return objectName == null ? "" : objectName.replaceFirst("^/+", "");
     }
 }

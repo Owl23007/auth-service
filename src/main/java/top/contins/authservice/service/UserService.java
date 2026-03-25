@@ -2,6 +2,7 @@ package top.contins.authservice.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import top.contins.authservice.model.common.Result;
+import top.contins.authservice.model.dto.CreateProfileImageUploadRequest;
 import top.contins.authservice.model.dto.RegisterRequest;
 import top.contins.authservice.model.dto.UserLoginRequest;
 import top.contins.authservice.model.po.UserPo;
@@ -189,4 +190,12 @@ public interface UserService {
      * @return 更新结果
      */
     Result<?> updateProfile(Long userId, Object request);
+
+    Result<?> createAvatarUploadUrl(Long userId, CreateProfileImageUploadRequest request);
+
+    Result<?> confirmAvatarUpload(Long userId, String objectName);
+
+    Result<?> createBackgroundUploadUrl(Long userId, CreateProfileImageUploadRequest request);
+
+    Result<?> confirmBackgroundUpload(Long userId, String objectName);
 }
